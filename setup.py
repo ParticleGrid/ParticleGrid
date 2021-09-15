@@ -12,8 +12,11 @@ pybind_11_extension = Pybind11Extension("ParticleGrid",
                                         extra_compile_args=["-mavx", "-fopenmp"],
                                         extra_link_args=['-lgomp'],
                                         define_macros=[('VERSION_INFO', __version__)])
+discretizer_extension = Pybind11Extension("Discretizer",
+                                          ["src/discterizer.cpp"],
+                                          cxx_std=17)
 
-ext_modules = [pybind_11_extension]
+ext_modules = [pybind_11_extension, discretizer_extension]
 
 package_name = "ParticleGrid"
 long_description = "ParticleGrid is an accelerated grid generation package for generating \
