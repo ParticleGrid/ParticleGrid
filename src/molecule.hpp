@@ -35,5 +35,3 @@ inline Molecule* next_molecule(Molecule* a){
     step += a->n_atoms * sizeof(a->atoms[0]);
     return (Molecule*)((char*)a + step);
 }
-
-void gaussian_erf_avx_fit_points(size_t n_atoms, float* points, OutputSpec* output, float* tensor);
