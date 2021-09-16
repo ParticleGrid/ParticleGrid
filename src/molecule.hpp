@@ -30,7 +30,7 @@ struct GridSpec
     
 };
 
-inline Molecule* next_molecule(Molecule* a){
+static inline Molecule* next_molecule(Molecule* a){
     size_t step = offsetof(Molecule, atoms);
     step += a->n_atoms * sizeof(a->atoms[0]);
     return (Molecule*)((char*)a + step);

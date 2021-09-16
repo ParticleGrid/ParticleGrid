@@ -64,7 +64,7 @@ void datagen_consumer_avx_py(PyDataQueue* data_ptr){
         size_t stride = out->H*out->W*out->D*out->N;
         for(int i = 0; i < info.n_molecules; i++){
             OutputSpec* out = &info.outs[i];
-            gaussian_erf_avx_fit_points(info.molecule_sizes[i], info.molecules[i], out, info.tensor_out + stride*i);
+            gaussian_erf_avx_sparse(info.molecule_sizes[i], info.molecules[i], out, info.tensor_out + stride*i);
         }
         {
             std::unique_lock<std::mutex> lock(data.mtx);
