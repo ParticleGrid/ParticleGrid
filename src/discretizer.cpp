@@ -20,12 +20,12 @@ squared_error_forward(const float* original_grid, const float* candidate_grid, c
 }
 
 void 
-squared_error_fused(const float* original_grid, 
-                    const float* candidate_grid,
-                    float*  gradient_wrt_candidate,
-                    const int& num_grid_points,
-                    const float& threshold,
-                    bool& stop_backprop){
+squared_error_backward(const float* original_grid, 
+                       const float* candidate_grid,
+                       float*  gradient_wrt_candidate,
+                       const int& num_grid_points,
+                       const float& threshold,
+                       bool& stop_backprop){
   float errs[num_grid_points];
   float total = 0;
 
@@ -35,21 +35,27 @@ squared_error_fused(const float* original_grid,
     errs[i] = err; // Cache error
   }
 
-  if (total < threshold){
-    // No need to calculate backprop as the candidate grid
-    // and the original grid are close enough according to
-    // the threshold set
-    stop_backprop = true;
-    return;
-  }
-
-
-
+  // if (total < threshold){
+  //   // No need to calculate backprop as the candidate grid
+  //   // and the original grid are close enough according to
+  //   // the threshold set
+  //   stop_backprop = true;
+  //   return;
+  // }
 }
+
+// void 
+// coord_to_grid_forward(const float* points,
+//                       float* grid,
+//                       ){
+
+// }
+
+
 py::array_t<float> 
-estimate_coords(float* grid,
-                int num_channels, 
-                int offset){
+estimate_coords(const float* grid,
+                const int num_channels, 
+                const int offset){
 
   float total = 0;
 
@@ -58,45 +64,51 @@ estimate_coords(float* grid,
   float channel_total;
   int n_atoms_in_channel;
 
-  for (auto channel = 0; i < num_channels; ++channel){
+  for (auto channel = 0; channel < num_channels; ++channel){
     
     channel_total = 0;
 
     for (auto grid_point_index = 0; grid_point_index < offset; ++grid_point_index){
 
-      channel_total += grid[channel*offest + grid_point_index];
-      total += grid[channel*offest + grid_point_index];
+      channel_total += grid[channel*offset + grid_point_index];
+      total += grid[channel*offset + grid_point_index];
     }
 
-    n_atoms_in_channel = std::static_cast<int>(std::ceil(channel_total));
+    n_atoms_in_channel = static_cast<int>(std::ceil(channel_total));
 
   }
 
-  int n_atoms = std::static_cast<int>(std::ceil(total));
+  int n_atoms = static_cast<int>(std::ceil(total));
 
   std::vector<ssize_t> coords_shape = {(ssize_t)n_atoms, 4};
   npcarray coords = py::array_t<float>();
+  return coords;
 }
 
 py::array_t<float> 
 grid_to_coords(npcarray grid){
-  std::vector<ssize_t> grid_dims  = grid.shape(); 
-  
-  int num_channels = grid_dims[0];
+
+  // Following line assumes a 4D grid, which is while valid
+  // not particularly extensible
+
+  const std::vector<ssize_t> grid_dims{grid.shape(), grid.shape()+4}; 
+  const int num_channels = grid_dims[0];
 
   // The offset is the number of grid points per channel. It's used as a stride for 
   // traversing through the grid pointer
 
-  int offset = std::accumulate(grid_dims.begin()+1, grid_dims.end(), 1, std::multiplies<int>());
+  const int offset = std::accumulate(grid_dims.begin()+1, grid_dims.end(), 1, std::multiplies<int>());
 
-  auto& initial_estimate = num_atoms(grid, num_channel, num_grid_points);
+  const float* grid_ptr = (float*)grid.request().ptr;
+
+
+  auto estimated_coords = estimate_coords(grid_ptr, num_channels, offset);
 
   bool needs_optimize = true;
-
-  while(needs_optimize){
-
-  }
-
+  // while(0){
+    
+  // }
+  return estimated_coords;
 }
 
 

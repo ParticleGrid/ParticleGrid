@@ -1,4 +1,4 @@
-from setuptools import setup 
+from setuptools import setup, find_packages 
 
 # Available at setup time due to pyproject.toml
 from pybind11.setup_helpers import Pybind11Extension, build_ext
@@ -6,14 +6,14 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 __version__ = "0.0.1"
 min_python_version = '.'.join(map(str, (3, 6, 2)))
 
-pybind_11_extension = Pybind11Extension("ParticleGrid",
+pybind_11_extension = Pybind11Extension("GridGenerator",
                                         ["src/main.cpp"],
                                         cxx_std=17,
                                         extra_compile_args=["-mavx", "-fopenmp"],
                                         extra_link_args=['-lgomp'],
                                         define_macros=[('VERSION_INFO', __version__)])
 discretizer_extension = Pybind11Extension("Discretizer",
-                                          ["src/discterizer.cpp"],
+                                          ["src/discretizer.cpp"],
                                           cxx_std=17)
 
 ext_modules = [pybind_11_extension, discretizer_extension]
@@ -26,13 +26,18 @@ long_description = "ParticleGrid is an accelerated grid generation package for g
 if __name__ == '__main__':
   setup(
       name=package_name,
-      version=__version__, 
-      description=(""), 
-      long_description=long_description, 
+      version=__version__,
+      platforms='Linux', 
+      description=(""),
+      packages=find_packages(), 
+      long_description=long_description,
+      ext_package="GridGenerator", 
       ext_modules=ext_modules,
       cmdclass={"build_ext": build_ext},
       url="",
       author="ParticleGrid Team",
       python_requires=f'>={min_python_version}',
       license='BSD-3',
-      keywords='particlegrid voxels machine learning molecules')
+      install_requires=['numpy'],
+      keywords='particlegrid voxels machine learning molecules',
+      include_package_data=True)
