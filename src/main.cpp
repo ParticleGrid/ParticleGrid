@@ -7,6 +7,7 @@
 
 #include "cgridgen.h"
 #include "generate.h"
+#include "tensor_handling.hpp"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -91,15 +92,19 @@ py::array_t<float> coord_to_grid(npcarray points,
 
     memset(out_tensor, 0, num_channels*grid_size*grid_size*grid_size*sizeof(float));
  
-    GridSpec out = {
-        .width = width,
-        .height = height,
-        .depth = depth,
-        .variance = variance,
-        .grid_size = grid_size,
-        .num_molecules = (int)n_atoms
+    OutputSpec out = {
+        .ext = {
+            {0, 0, 0},
+            {width, height, depth}
+        },
+        .erf_inner_c = (float)(1/(SQRT_2*variance)),
+        .erf_outer_c = 0.125,
+        .W = grid_size,
+        .H = grid_size,
+        .D = grid_size,
+        .N = num_channels,
     };
-    multithreaded_gaussian_erf_avx(n_atoms, point_ptr, &out, out_tensor);
+    gaussian_erf_avx_sparse(n_atoms, point_ptr, &out, out_tensor);
     return tensor;
 }
 
@@ -197,11 +202,6 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
 
     for(auto& tr : threads) tr.join();
     for(float* f : array_pointers) delete[] f;
-
-    // printf("-=-=-=-=-=-=- After -=-=-=-=-=-=-\n");
-    // for(int i = 0; i < N; i += 1){
-        // display_tensor(W, H, D, out_tensor + stride*i, 4);
-    // }
 }
 
 void add_to_grid(py::list molecules, npcarray tensor,
@@ -227,7 +227,6 @@ py::array_t<float> generate_grid_multithreaded_c(py::list molecules, npcarray* e
 
     return grid;
 }
-
 
 py::array_t<float> generate_grid_multithreaded_extents(py::list molecules, npcarray extents,
             int W = 32, int H = 32, int D = 32, int N = 1,
