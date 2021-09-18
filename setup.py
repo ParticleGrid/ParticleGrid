@@ -16,7 +16,7 @@ discretizer_extension = Pybind11Extension("Discretizer",
                                           ["src/discretizer.cpp"],
                                           cxx_std=17)
 
-ext_modules = [pybind_11_extension, discretizer_extension]
+ext_modules = [ pybind_11_extension, discretizer_extension]
 
 package_name = "ParticleGrid"
 long_description = "ParticleGrid is an accelerated grid generation package for generating \
@@ -28,12 +28,9 @@ if __name__ == '__main__':
       name=package_name,
       version=__version__,
       platforms='Linux', 
-      description=(""),
-      packages=find_packages(), 
+      description=(""), 
       long_description=long_description,
-      ext_package="GridGenerator", 
       ext_modules=ext_modules,
-      cmdclass={"build_ext": build_ext},
       url="",
       author="ParticleGrid Team",
       python_requires=f'>={min_python_version}',

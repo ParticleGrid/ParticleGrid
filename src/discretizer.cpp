@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 #include <Python.h>
 #include <cmath>
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -52,10 +53,11 @@ squared_error_backward(const float* original_grid,
 // }
 
 
-py::array_t<float> 
+void 
 estimate_coords(const float* grid,
                 const int num_channels, 
-                const int offset){
+                const int offset,
+                npcarray& coords){
 
   float total = 0;
 
@@ -78,11 +80,16 @@ estimate_coords(const float* grid,
 
   }
 
+
+
   int n_atoms = static_cast<int>(std::ceil(total));
 
-  std::vector<ssize_t> coords_shape = {(ssize_t)n_atoms, 4};
-  npcarray coords = py::array_t<float>();
-  return coords;
+  py::print(total, n_atoms);
+
+  std::vector<ssize_t> coords_shape = {(ssize_t)1, 4};
+  coords = py::array_t<float>(coords_shape);
+  auto* coords_ptr = (float*)coords.request().ptr;
+  memset(coords_ptr, 0, 4*sizeof(float));
 }
 
 py::array_t<float> 
@@ -98,11 +105,13 @@ grid_to_coords(npcarray grid){
   // traversing through the grid pointer
 
   const int offset = std::accumulate(grid_dims.begin()+1, grid_dims.end(), 1, std::multiplies<int>());
+  py::print("Num Channels",num_channels, "Offest ",offset);
 
   const float* grid_ptr = (float*)grid.request().ptr;
 
 
-  auto estimated_coords = estimate_coords(grid_ptr, num_channels, offset);
+  npcarray estimated_coords; 
+  estimate_coords(grid_ptr, num_channels, offset, estimated_coords);
 
   bool needs_optimize = true;
   // while(0){
