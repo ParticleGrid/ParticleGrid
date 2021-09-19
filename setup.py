@@ -31,6 +31,7 @@ if __name__ == '__main__':
       description=(""), 
       long_description=long_description,
       ext_modules=ext_modules,
+      packages=find_packages(),
       url="",
       author="ParticleGrid Team",
       python_requires=f'>={min_python_version}',
