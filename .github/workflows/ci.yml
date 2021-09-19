@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install Python 3
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: 3.8
       - name: Create venv
@@ -24,6 +24,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install pytest 
-          pip install -e .
+          pip install --verbose . 
       - name: Run tests
         run: pytest 
