@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pytest 
-          pip install --verbose . 
+          pip install -e .[test] 
           pip list
           which python
           python -c "import ParticleGrid"
