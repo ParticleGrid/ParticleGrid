@@ -11,7 +11,8 @@ pybind_11_extension = Pybind11Extension("GridGenerator",
                                         cxx_std=17,
                                         extra_compile_args=["-mavx", "-fopenmp"],
                                         extra_link_args=['-lgomp'],
-                                        define_macros=[('VERSION_INFO', __version__)])
+                                        define_macros=[('VERSION_INFO', __version__),
+                                                       ('DEBUG_MODE', 1)])
 discretizer_extension = Pybind11Extension("Discretizer",
                                           ["src/discretizer.cpp"],
                                           cxx_std=17)

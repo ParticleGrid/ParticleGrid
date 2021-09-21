@@ -124,7 +124,7 @@ void multithreaded_gaussian_erf_avx(size_t n_atoms, const float* points, GridSpe
         }
     }
 }
-
+ 
 
 void gaussian_erf_avx_fit_points(size_t n_atoms, float* points, OutputSpec* o, float* tensor){
     /**
