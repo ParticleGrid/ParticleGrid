@@ -124,7 +124,7 @@ void multithreaded_gaussian_erf_avx(size_t n_atoms, const float* points, GridSpe
         }
     }
 }
-
+ 
 
 void gaussian_erf_avx_fit_points(size_t n_atoms, float* points, OutputSpec* o, float* tensor){
     /**
@@ -458,9 +458,9 @@ void validate_tensor_py(npcarray tensor, bool check_zero = false){
 }
 
 
-PYBIND11_MODULE(ParticleGrid, m) {
+PYBIND11_MODULE(GridGenerator, m) {
     m.doc() = "Generate grids from point clouds";
-        m.def("coord_to_grid", &coord_to_grid,
+    m.def("coord_to_grid", &coord_to_grid,
           "Convert a single 4-D point-cloud to grid",
           py::arg("points"),
           py::arg("width"), py::arg("height"), py::arg("depth"),
