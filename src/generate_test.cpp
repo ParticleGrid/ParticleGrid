@@ -9,11 +9,12 @@ int main(){
     float pos = 0.5;
     float grid_dim = 1;
     float cell_dim = grid_dim/ERFN;
-    float variance = 0.1;
+    float variance = 0.04;
     float ic = (float)(1/(SQRT_2*variance));
     alignas (32) float erfa[ERFN+1];
     float erfb[ERFN+1];
     #ifdef V8F
+    /*
     v8sf delta;
     for(int idx = 0; idx < 8; idx++){
         delta[idx] = idx*cell_dim-pos;
@@ -28,10 +29,11 @@ int main(){
         }
     }
     printf("\n");
+    */
     #endif
-    float* tensor = (float*)malloc(8*16*16*16*sizeof(float));
+    float* tensor = (float*)malloc(8*ERFN*ERFN*ERFN*sizeof(float));
     float points[] = {
-        0.0, 0.5, 0.5, 0.5
+        0.0, 0.5, 0.5, 0.5,
     };
     OutputSpec o = {
         .ext = {
@@ -39,12 +41,12 @@ int main(){
             {1.0, 1.0, 1.0}
         },
         .erf_inner_c = ic,
-        .erf_outer_c = 0.25,
-        .W = 16,
-        .H = 16,
-        .D = 16,
+        .erf_outer_c = 0.125,
+        .W = ERFN,
+        .H = ERFN,
+        .D = ERFN,
         .N = 8
     };
     gaussian_erf(1, points, &o, tensor);
-    display_tensor_xy(16, 16, 16, tensor, 4);
+    display_tensor_xy(ERFN, ERFN, ERFN, tensor, 4);
 }

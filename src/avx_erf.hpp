@@ -11,9 +11,6 @@
 #define SQRT_PI 1.7724538509055159
 #define SQRT_PIO2 0.8862269254527579
 
-// typedef float v8sf __attribute__ ((vector_size (sizeof(float)*8)));
-// typedef int v8si __attribute__ ((vector_size (sizeof(float)*8)));
-
 #ifdef V8F
 static inline v8sf pointwise_exp_avx(v8sf x){
     for(int i = 0; i < 8; i++){
