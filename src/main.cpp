@@ -65,7 +65,7 @@ void datagen_consumer_avx_py(PyDataQueue* data_ptr){
         size_t stride = out->H*out->W*out->D*out->N;
         for(int i = 0; i < info.n_molecules; i++){
             OutputSpec* out = &info.outs[i];
-            gaussian_erf_avx_sparse(info.molecule_sizes[i], info.molecules[i], out, info.tensor_out + stride*i);
+            gaussian_erf(info.molecule_sizes[i], info.molecules[i], out, info.tensor_out + stride*i);
         }
         {
             std::unique_lock<std::mutex> lock(data.mtx);
@@ -104,7 +104,7 @@ py::array_t<float> coord_to_grid(npcarray points,
         .D = grid_size,
         .N = num_channels,
     };
-    gaussian_erf_avx_sparse(n_atoms, point_ptr, &out, out_tensor);
+    gaussian_erf(n_atoms, point_ptr, &out, out_tensor);
     return tensor;
 }
 

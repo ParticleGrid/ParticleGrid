@@ -1,5 +1,6 @@
 #pragma once
 
+#include "perfdef.h"
 #include "avx_erf.hpp"
 
 #define SQRT_2 1.41421356237
@@ -12,7 +13,8 @@ typedef struct OutputSpec {
     int N;
 } OutputSpec;
 
-static inline void simd_err_func_helper(float* erf_i, v8sf delta, int bound, float ic, float cell_i, float dim_size){
+#ifdef V8F
+static inline void erf_helper_v8f(float* erf_i, v8sf delta, int bound, float ic, float cell_i, float dim_size){
     // Calculate error function at each grid points
 
     for (int i = 0; i+8 <= bound; i+=8){
@@ -22,7 +24,6 @@ static inline void simd_err_func_helper(float* erf_i, v8sf delta, int bound, flo
     }
     erf_i[bound] = erf_apx(dim_size*ic);
 
-
     // Calculate error function difference at each interval in the grid point
     for(int i = 0; i+8 <= bound; i+=8){
         v8sf erfv = _mm256_load_ps(erf_i+i);
@@ -30,8 +31,42 @@ static inline void simd_err_func_helper(float* erf_i, v8sf delta, int bound, flo
         _mm256_store_ps(erf_i+i, erfv2-erfv);
     }
 }
+#endif
 
-static inline void gaussian_erf_avx_sparse(size_t n_atoms, const float* points, OutputSpec* o, float* tensor){
+static inline void erf_helper(float* erf_i, float pos, int bound, float ic, float cell_i, float dim_size){
+    // Calculate error function at each grid points
+
+    for (int i = 0; i <= bound; i++){
+        float dist = i * cell_i - pos;
+        float erfv = erf_apx(dist * ic);
+        erf_i[i] = erfv;
+    }
+
+    // Calculate error function difference at each interval in the grid point
+    for(int i = 0; i < bound; i++){
+        erf_i[i] =  erf_i[i+1] - erf_i[i];
+    }
+}
+
+static inline bool erf_range_helper(int range[2], int center, int grid_shape, float* erf_i){
+    int i = center;
+    if(i < 0) i = 0;
+    if(i > grid_shape) i = grid_shape;
+    center = i;
+    if(erf_i[i] == 0.0){
+        return 1;
+    }
+    while(i < grid_shape && erf_i[i++] != 0.0);
+    i--;
+    range[1] = i;
+    i = center;
+    while(i >= 0 && erf_i[i--] != 0.0);
+    i++;
+    range[0] = i;
+    return 0;
+}
+
+static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec* o, float* tensor){
     /**
      * Generate a tensor in `tensor` using the information provided
      *
@@ -67,70 +102,71 @@ static inline void gaussian_erf_avx_sparse(size_t n_atoms, const float* points, 
         int tens_offset = o->W*o->H*o->D*channel;
         float pos[3];
         int atom_spans[3][2];
+        #ifdef V8F
         v8sf posv[3];
+        #endif
         // get atom positions
         for(int i = 0; i < 3; i++){
             pos[i] = points[point*4 + i + 1] - o->ext[0][i];
+            #ifdef V8F
             posv[i] = _mm256_broadcast_ss(&pos[i]);
+            #endif
         }
 
         // represents spaces between cells
+        #ifdef V8F
         v8sf offsets[3];
+        #endif
         bool skip = 0;
         for(int dim = 0; dim < 3; dim++){
-            memset(erfs[dim], 0, (grid_dim[dim] + 1) * sizeof(float));
-            int center = (int)( (pos[dim])/cell_dim[dim] );
+            #ifdef V8F
             for(int idx = 0; idx < 8; idx++){
                 offsets[dim][idx] = idx*cell_dim[dim];
             }
             // calculate erf at every cell
             v8sf delta = offsets[dim] - posv[dim];
-            simd_err_func_helper(erfs[dim], delta, grid_shape[dim], ic, cell_dim[dim], grid_dim[dim]);
-            int i = center;
-            if(i < 0) i = 0;
-            if(i > grid_shape[dim]) i = grid_shape[dim];
-            center = i;
-            if(erfs[dim][i] == 0.0){
-                skip = true;
-                break;
-            }
-            while(erfs[dim][i] != 0.0 && i < grid_shape[dim]+1){
-                i++;
-            }
-            i--;
-            atom_spans[dim][1] = i;
-            i = center;
-            while(erfs[dim][i] != 0.0 && i > 0){
-                i--;
-            }
-            i++;
-            atom_spans[dim][0] = i;
+            erf_helper_v8f(erfs[dim], delta, grid_shape[dim], ic, cell_dim[dim], grid_dim[dim]);
+            #else
+            erf_helper(erfs[dim], pos[dim], grid_shape[dim], ic, cell_dim[dim], grid_dim[dim]);
+            #endif
+            int center = (int)( (pos[dim])/cell_dim[dim] );
+            skip = erf_range_helper(atom_spans[dim], center, grid_shape[dim], erfs[dim]);
+            if(skip) break;
         }
         if(skip){
             continue;
         }
-        // avx 256-bit vector specific
+
+        #ifdef V8F
         if(atom_spans[0][0] % 8)
             atom_spans[0][0] -= atom_spans[0][0] % 8;
         if(atom_spans[0][1] % 8 == 0)
             atom_spans[0][1] += 8;
+        #endif
 
         int HH = o->H;
         int WW = o->W;
 
         // multiply the erf values together to get the final volume integration
+        #ifdef OMP_ON
+        #pragma omp for
+        #endif
         for(int k = atom_spans[2][0]; k <= atom_spans[2][1]; k++){
             float z_erf = erfz[k] * oc;
             size_t koff = k*WW*HH + tens_offset;
             for(int j = atom_spans[1][0]; j <= atom_spans[1][1]; j++){
                 float yz_erf = erfy[j] * z_erf;
                 size_t kjoff = koff + j*WW;
-                for(int i = atom_spans[0][0]; i < atom_spans[0][1]; i+=8){
-                    v8sf erfxv = _mm256_load_ps(erfx+i);
+                for(int i = atom_spans[0][0]; i < atom_spans[0][1]; i+=VSIZE){
                     size_t idx = i + kjoff;
+                    #ifdef V8F
+                    v8sf erfxv = _mm256_load_ps(erfx+i);
                     v8sf tmp = _mm256_loadu_ps(&tensor[idx]);
                     tmp = tmp + (erfxv * yz_erf);
                     _mm256_storeu_ps(&tensor[idx], tmp);
+                    #else
+                    tensor[idx] += erfx[i]*yz_erf;
+                    #endif
                 }
             }
         }
