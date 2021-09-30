@@ -6,5 +6,10 @@
 #else
     #define VSIZE 1
 #endif
-#define OMP_ON
+#ifndef OMP_OFF
+    #define OMP_ON
+#endif
+#ifndef N_THREADS
+    #define N_THREADS 0
+#endif
 

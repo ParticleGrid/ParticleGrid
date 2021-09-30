@@ -44,7 +44,8 @@ static inline void erf_helper(float* erf_i, float pos, int bound, float ic, floa
 
     // Calculate error function difference at each interval in the grid point
     for(int i = 0; i < bound; i++){
-        erf_i[i] =  erf_i[i+1] - erf_i[i];
+        float v = erf_i[i+1] - erf_i[i];
+        erf_i[i] = v;
     }
 }
 
@@ -129,9 +130,14 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
             #else
             erf_helper(erfs[dim], pos[dim], grid_shape[dim], ic, cell_dim[dim], grid_dim[dim]);
             #endif
+            #ifndef NO_SPARSE
             int center = (int)( (pos[dim])/cell_dim[dim] );
             skip = erf_range_helper(atom_spans[dim], center, grid_shape[dim], erfs[dim]);
             if(skip) break;
+            #else
+            atom_spans[dim][0] = 0;
+            atom_spans[dim][1] = grid_shape[dim]-1;
+            #endif
         }
         if(skip){
             continue;
@@ -149,7 +155,7 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
 
         // multiply the erf values together to get the final volume integration
         #ifdef OMP_ON
-        #pragma omp for
+        // #pragma omp for
         #endif
         for(int k = atom_spans[2][0]; k <= atom_spans[2][1]; k++){
             float z_erf = erfz[k] * oc;
@@ -165,7 +171,11 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
                     tmp = tmp + (erfxv * yz_erf);
                     _mm256_storeu_ps(&tensor[idx], tmp);
                     #else
-                    tensor[idx] += erfx[i]*yz_erf;
+                    float v = erfx[i]*yz_erf;
+                    tensor[idx] += v;
+                    if(0){
+                        printf("%d %d %d %f\n", i, j, k, v);
+                    }
                     #endif
                 }
             }

@@ -109,7 +109,7 @@ py::array_t<float> coord_to_grid(npcarray points,
 }
 
 void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
-            float variance = 0.04){
+            float variance = 0.04, int n_threads = N_THREADS){
     /* c interface for the add_to_grid function.
      * adds provided molecules to the provided tensors
      * with optional user-specified extents
@@ -142,7 +142,7 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     }
 
     long chunk_size = 8;
-    int n_threads = std::thread::hardware_concurrency();
+    if(n_threads == 0) n_threads = std::thread::hardware_concurrency(); 
     std::vector<std::thread> threads;
     PyDataQueue data_queue;
     data_queue.n_molecules = chunk_size;

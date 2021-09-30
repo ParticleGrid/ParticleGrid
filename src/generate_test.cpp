@@ -33,7 +33,7 @@ int main(){
     #endif
     float* tensor = (float*)malloc(8*ERFN*ERFN*ERFN*sizeof(float));
     float points[] = {
-        0.0, 0.5, 0.5, 0.5,
+        0.0, 0.2, 0.3, 0.5,
     };
     OutputSpec o = {
         .ext = {
