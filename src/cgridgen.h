@@ -5,8 +5,7 @@
 #include <mutex>
 #include <condition_variable>
 
-#include "molecule.hpp"
-#include "tensor_handling.hpp"
+#include "generate.h"
 
 class PyConsumeInfo {
 public:

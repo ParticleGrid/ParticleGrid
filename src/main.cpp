@@ -6,11 +6,8 @@
 #include <omp.h>
 
 #include "cgridgen.h"
-
-#include "avx_erf.hpp"
-
-#define SQRT_2 1.41421356237
-#define INTEGRAL_NORMALIZATION_3D 0.125
+#include "generate.h"
+#include "tensor_handling.hpp"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -24,190 +21,6 @@
 namespace py = pybind11;
 
 typedef py::array_t<float, py::array::c_style | py::array::forcecast> npcarray;
-
-
-inline void simd_err_func_helper(float* erf_i, v8sf delta, int bound, float ic, float cell_i, float dim_size){
-    // Calculate error function at each grid points
-
-    for (int i = 0; i+8 <= bound; i+=8){
-        v8sf erfv = erf256_ps(delta * ic);
-        _mm256_store_ps(erf_i+i, erfv);
-        delta += cell_i * 8;
-    }
-    erf_i[bound] = erf_apx(dim_size*ic);
-
-
-    // Calculate error function difference at each interval in the grid point
-    for(int i = 0; i+8 <= bound; i+=8){
-        v8sf erfv = _mm256_load_ps(erf_i+i);
-        v8sf erfv2 = _mm256_loadu_ps(erf_i+i+1);
-        _mm256_store_ps(erf_i+i, erfv2-erfv);
-    }
-}
-
-
-void multithreaded_gaussian_erf_avx(size_t n_atoms, const float* points, GridSpec* o, float* tensor){
-    const float width = o->width;
-    const float height = o->height;
-    const float depth = o->depth;
-    const float variance = o->variance;
-    const float cell_w = width/o->grid_size;
-    const float cell_h = height/o->grid_size;
-    const float cell_d = depth/o->grid_size;
-    const float ic = (float)(1/(SQRT_2 * variance));
-    const float oc = INTEGRAL_NORMALIZATION_3D;
-
-
-    #pragma omp parallel for
-    for(size_t point = 0; point < n_atoms; ++point){
-
-        // Do the error function calculations in parallel
-
-        alignas (32) float erfx[o->grid_size+1];
-        alignas (32) float erfy[o->grid_size+1];
-        alignas (32) float erfz[o->grid_size+1];
-    int channel = (int)points[point*4];
-        float x = points[point*4 + 1];
-        float y = points[point*4 + 2];
-        float z = points[point*4 + 3];
-        int tens_offset = o->grid_size*o->grid_size*o->grid_size*channel;
-        v8sf x_atom, y_atom, z_atom;
-        x_atom = _mm256_broadcast_ss(&x);
-        y_atom = _mm256_broadcast_ss(&y);
-        z_atom = _mm256_broadcast_ss(&z);
-
-        v8sf x_offset, y_offset, z_offset;
-        for(int idx = 0; idx < 8; idx++){
-            x_offset[idx] = idx*cell_w;
-            y_offset[idx] = idx*cell_h;
-            z_offset[idx] = idx*cell_d;
-        }
-
-        v8sf delta = x_offset - x_atom;
-        simd_err_func_helper(erfx, delta, o->grid_size, ic, cell_w, width);
-
-        delta = y_offset - y_atom;
-        simd_err_func_helper(erfy, delta, o->grid_size, ic, cell_h, height);
-        
-        delta = z_offset - z_atom;
-        simd_err_func_helper(erfz, delta, o->grid_size, ic, cell_d, depth);
-
-        // Update tensor sequentially
-        #pragma omp critical
-        {
-            int DD = o->grid_size;
-            int HH = o->grid_size;
-            int WW = o->grid_size;
-
-            for(int k = 0; k < DD; k++){
-                float z_erf = erfz[k] * oc;
-                size_t koff = k*WW*HH + tens_offset;
-                for(int j = 0; j < HH; j++){
-                    float yz_erf = erfy[j] * z_erf;
-                    #ifdef FORCE_FMA
-                    v8sf yz_erfv = _mm256_broadcast_ss(&yz_erf);
-                    #endif
-                    size_t kjoff = koff + j*WW;
-                    for(int i = 0; i+8 <= WW; i+=8){
-                        v8sf erfxv = _mm256_load_ps(erfx+i);
-                        size_t idx = i + kjoff;
-                        v8sf tmp = _mm256_loadu_ps(&tensor[idx]);
-                        #ifdef FORCE_FMA
-                        tmp = _mm256_fmadd_ps(erfxv, yz_erfv, tmp);
-                        #else
-                        tmp = tmp + (erfxv * yz_erf);
-                        #endif
-                        _mm256_storeu_ps(&tensor[idx], tmp);
-                    }
-                }
-            }
-        }
-    }
-}
- 
-
-void gaussian_erf_avx_fit_points(size_t n_atoms, float* points, OutputSpec* o, float* tensor){
-    /**
-     * Generate a tensor in `tensor` using the information provided
-     *
-     * `points` is an array of size `n_atoms*4`
-     * Where data comes in the form {c, x, y, z}
-     *      c is the channel (as a float), (x, y, z) is the atom's position
-     */
-    float width = o->ext[1][0] - o->ext[0][0];
-    float height = o->ext[1][1] - o->ext[0][1];
-    float depth = o->ext[1][2] - o->ext[0][2];
-
-    // dimensions for individual grid cells
-    float cell_w = width/o->W;
-    float cell_h = height/o->H;
-    float cell_d = depth/o->D;
-    // info for calculating the erf function
-    float ic = o->erf_inner_c;
-    float oc = o->erf_outer_c;
-    // where data will be stored about the erf function calculations
-    alignas (32) float erfx[o->W+1];
-    alignas (32) float erfy[o->H+1];
-    alignas (32) float erfz[o->D+1];
-    
-    for(size_t point = 0; point < n_atoms; point++){
-        int channel = (int)points[point*4];
-        float x = points[point*4 + 1] - o->ext[0][0];
-        float y = points[point*4 + 2] - o->ext[0][1];
-        float z = points[point*4 + 3] - o->ext[0][2];
-        int tens_offset = o->W*o->H*o->D*channel;
-        v8sf x_atom, y_atom, z_atom;
-        x_atom = _mm256_broadcast_ss(&x);
-        y_atom = _mm256_broadcast_ss(&y);
-        z_atom = _mm256_broadcast_ss(&z);
-
-        // represents spaces between cells
-        v8sf x_offset, y_offset, z_offset;
-        for(int idx = 0; idx < 8; idx++){
-            x_offset[idx] = idx*cell_w;
-            y_offset[idx] = idx*cell_h;
-            z_offset[idx] = idx*cell_d;
-        }
-
-        // calculate the erf function for every cell
-        v8sf delta = x_offset - x_atom;
-        simd_err_func_helper(erfx, delta, o->W, ic, cell_w, width);
-
-        delta = y_offset - y_atom;
-        simd_err_func_helper(erfy, delta, o->H, ic, cell_h, height);
-        
-        delta = z_offset - z_atom;
-        simd_err_func_helper(erfz, delta, o->D, ic, cell_d, depth);
-
-        int DD = o->D;
-        int HH = o->H;
-        int WW = o->W;
-
-        // multiply the erf values together to get the final volume integration
-        for(int k = 0; k < DD; k++){
-            float z_erf = erfz[k] * oc;
-            size_t koff = k*WW*HH + tens_offset;
-            for(int j = 0; j < HH; j++){
-                float yz_erf = erfy[j] * z_erf;
-                #ifdef FORCE_FMA
-                v8sf yz_erfv = _mm256_broadcast_ss(&yz_erf);
-                #endif
-                size_t kjoff = koff + j*WW;
-                for(int i = 0; i+8 <= WW; i+=8){
-                    v8sf erfxv = _mm256_load_ps(erfx+i);
-                    size_t idx = i + kjoff;
-                    v8sf tmp = _mm256_loadu_ps(&tensor[idx]);
-                    #ifdef FORCE_FMA
-                    tmp = _mm256_fmadd_ps(erfxv, yz_erfv, tmp);
-                    #else
-                    tmp = tmp + (erfxv * yz_erf);
-                    #endif
-                    _mm256_storeu_ps(&tensor[idx], tmp);
-                }
-            }
-        }
-    }
-}
 
 void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
     /**
@@ -252,7 +65,7 @@ void datagen_consumer_avx_py(PyDataQueue* data_ptr){
         size_t stride = out->H*out->W*out->D*out->N;
         for(int i = 0; i < info.n_molecules; i++){
             OutputSpec* out = &info.outs[i];
-            gaussian_erf_avx_fit_points(info.molecule_sizes[i], info.molecules[i], out, info.tensor_out + stride*i);
+            gaussian_erf(info.molecule_sizes[i], info.molecules[i], out, info.tensor_out + stride*i);
         }
         {
             std::unique_lock<std::mutex> lock(data.mtx);
@@ -279,20 +92,24 @@ py::array_t<float> coord_to_grid(npcarray points,
 
     memset(out_tensor, 0, num_channels*grid_size*grid_size*grid_size*sizeof(float));
  
-    GridSpec out = {
-        .width = width,
-        .height = height,
-        .depth = depth,
-        .variance = variance,
-        .grid_size = grid_size,
-        .num_molecules = n_atoms
+    OutputSpec out = {
+        .ext = {
+            {0, 0, 0},
+            {width, height, depth}
+        },
+        .erf_inner_c = (float)(1/(SQRT_2*variance)),
+        .erf_outer_c = 0.125,
+        .W = grid_size,
+        .H = grid_size,
+        .D = grid_size,
+        .N = num_channels,
     };
-    multithreaded_gaussian_erf_avx(n_atoms, point_ptr, &out, out_tensor);
+    gaussian_erf(n_atoms, point_ptr, &out, out_tensor);
     return tensor;
 }
 
 void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
-            float variance = 0.04){
+            float variance = 0.04, int n_threads = N_THREADS){
     /* c interface for the add_to_grid function.
      * adds provided molecules to the provided tensors
      * with optional user-specified extents
@@ -325,7 +142,7 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     }
 
     long chunk_size = 8;
-    int n_threads = std::thread::hardware_concurrency();
+    if(n_threads == 0) n_threads = std::thread::hardware_concurrency(); 
     std::vector<std::thread> threads;
     PyDataQueue data_queue;
     data_queue.n_molecules = chunk_size;
@@ -385,11 +202,6 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
 
     for(auto& tr : threads) tr.join();
     for(float* f : array_pointers) delete[] f;
-
-    // printf("-=-=-=-=-=-=- After -=-=-=-=-=-=-\n");
-    // for(int i = 0; i < N; i += 1){
-        // display_tensor(W, H, D, out_tensor + stride*i, 4);
-    // }
 }
 
 void add_to_grid(py::list molecules, npcarray tensor,
@@ -415,7 +227,6 @@ py::array_t<float> generate_grid_multithreaded_c(py::list molecules, npcarray* e
 
     return grid;
 }
-
 
 py::array_t<float> generate_grid_multithreaded_extents(py::list molecules, npcarray extents,
             int W = 32, int H = 32, int D = 32, int N = 1,
