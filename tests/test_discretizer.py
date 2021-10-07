@@ -33,7 +33,7 @@ def test_discretizer_multi_atom_single_channel():
                          width=1,
                          height=1,
                          depth=1,
-                         num_channels=2,
+                         num_channels=1,
                          grid_size=32,
                          variance=0.05)
     print(np.sum(grid))
