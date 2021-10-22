@@ -3,10 +3,10 @@
 #include "generate.h"
 #include "tensor_handling.hpp"
 
-#define SHAPE 16
+#define SHAPE 64
 
 int main(){
-    float variance = 0.08;
+    float variance = 0.1;
     float ic = (float)(1/(SQRT_2*variance));
     int n_mols = 0;
     FILE* f = fopen("test_input.mol", "r");
