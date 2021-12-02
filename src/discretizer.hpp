@@ -241,8 +241,6 @@ update_coords(npcarray& estimated_coords,
     x -= lr * std::clamp(estimated_coords_grad_ptr[grad_points_offset],grad_lower_bound,grad_higher_bound);
     y -= lr * std::clamp(estimated_coords_grad_ptr[grad_points_offset+1], grad_lower_bound,grad_higher_bound);
     z -= lr * std::clamp(estimated_coords_grad_ptr[grad_points_offset+2],grad_lower_bound, grad_higher_bound);
-
-    py::print(x,y,z);
   }
 }
 
