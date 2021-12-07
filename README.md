@@ -6,6 +6,10 @@
 
 ParticleGrid is a SIMD accelerated 3D grid generation library. 3D grids are generated from conformed molecular points and can be used with conventional 3D deep learning tools. 
  
+
+# Visualizations
+![Molecule 1](/docs/images/real_mol_3.png)
+![Molecule 2](/docs/images/real_mol_4.png)
 # Installation 
 
 ## Pip
