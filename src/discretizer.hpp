@@ -97,23 +97,12 @@ coord_to_grid_forward(const npcarray& estimated_coords,
       erfx[i] = -std::erf(delta_x_lower * ic);
       erfy[i] = -std::erf(delta_y_lower * ic);
       erfz[i] = -std::erf(delta_z_lower * ic);
-      // py::print(delta_y_lower);
-      // py::print("error function calculations: ", i,  delta_x_lower * ic, erfx[i] );
-      // py::print("error function calculations: ", i, delta_y_lower * ic, erfy[i] );
-      // py::print("error function calculations: ", i, delta_z_lower * ic, erfz[i] );
-      // py::print("----------------------------------------------------------------");
-
     }
 
     for (auto i = 0; i < grid_size; ++i){
       erfx[i] = erfx[i+1] - erfx[i];
       erfy[i] = erfy[i+1] - erfy[i];
       erfz[i] = erfz[i+1] - erfz[i];
-      // py::print("error function calculations: ", i, erfx[i] );
-      // py::print("error function calculations: ", i, erfy[i] );
-      // py::print("error function calculations: ", i, erfz[i] );
-      // py::print("----------------------------------------------------------------");
-
     }
 
     auto channel_offset = channel * (stride);
@@ -127,32 +116,11 @@ coord_to_grid_forward(const npcarray& estimated_coords,
         for(auto i = 0; i < grid_size; ++i){
           auto id =  zy_offset + i;
           auto val = erfx[i] * yz_erf;
-            // py::print(i, j,k , val); this is giving only 0's
           grid[id] += val; 
         }
       }
     }
   }
-
-  // auto total = 0.0;  
-  // for (auto c =0; c < num_channels; ++c){
-  //   auto channel_offset = c * (stride);
-
-  //   for(auto k = 0; k < grid_size; ++k){
-  //     auto z_offset = channel_offset + k * (grid_size*grid_size);
-      
-  //     for(auto j = 0; j < grid_size; ++j){
-  //       auto zy_offset = z_offset + j * (grid_size);
-        
-  //       for(auto i = 0; i < grid_size; ++i){
-  //         auto id =  zy_offset + i;
-  //         total += grid[id]; 
-  //       }
-  //     }
-  //   }
-  // }
-  // py::print("Total for generated grid: ", total);
-
 }
 
 
@@ -214,12 +182,6 @@ generate_grid_backward(const npcarray& estimated_coords,
       erfx_grad[i] = std::exp(-delta_sq_x_val);
       erfy_grad[i] = std::exp(-delta_sq_y_val);
       erfz_grad[i] = std::exp(-delta_sq_z_val);
-
-      // py::print("Gaussian function calculations X: ", i, erfx_grad[i] );
-      // py::print("Gaussian function calculations Y: ", i, erfy_grad[i] );
-      // py::print("Gaussian function calculations Z: ", i, erfz_grad[i] );
-      // py::print("----------------------------------------------------------------");
-
     }
 
     for (auto i = 0; i < grid_size; ++i){
@@ -230,10 +192,6 @@ generate_grid_backward(const npcarray& estimated_coords,
       erfx_grad[i] =  grad_ic*(erfx_grad[i+1] - erfx_grad[i]);
       erfy_grad[i] =  grad_ic*(erfy_grad[i+1] - erfy_grad[i]);
       erfz_grad[i] =  grad_ic*(erfz_grad[i+1] - erfz_grad[i]);
-      // py::print("error function calculations X: ", i, erfx_grad[i] );
-      // py::print("error function calculations Y: ", i, erfy_grad[i] );
-      // py::print("error function calculations Z: ", i, erfz_grad[i] );
-      // py::print("----------------------------------------------------------------");
     }
 
     auto channel_offset = channel * (stride);
@@ -280,11 +238,6 @@ update_coords(npcarray& estimated_coords,
     auto& x = points[points_offset+1];
     auto& y = points[points_offset+2];
     auto& z = points[points_offset+3];
-
-    // py::print("Coordinate Grad: ", estimated_coords_grad_ptr[grad_points_offset]);
-    // py::print("Coordinate Grad: ", estimated_coords_grad_ptr[grad_points_offset+1]);
-    // py::print("Coordinate Grad: ", estimated_coords_grad_ptr[grad_points_offset+2]);
-
     x -= lr * std::clamp(estimated_coords_grad_ptr[grad_points_offset],grad_lower_bound,grad_higher_bound);
     y -= lr * std::clamp(estimated_coords_grad_ptr[grad_points_offset+1], grad_lower_bound,grad_higher_bound);
     z -= lr * std::clamp(estimated_coords_grad_ptr[grad_points_offset+2],grad_lower_bound, grad_higher_bound);
