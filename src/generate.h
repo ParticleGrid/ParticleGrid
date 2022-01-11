@@ -155,7 +155,7 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
 
         // multiply the erf values together to get the final volume integration
         #ifdef OMP_ON
-        // #pragma omp for
+        #pragma omp parallel for
         #endif
         for(int k = atom_spans[2][0]; k <= atom_spans[2][1]; k++){
             float z_erf = erfz[k] * oc;
@@ -173,13 +173,35 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
                     #else
                     float v = erfx[i]*yz_erf;
                     tensor[idx] += v;
-                    if(0){
-                        printf("%d %d %d %f\n", i, j, k, v);
-                    }
                     #endif
                 }
             }
         }
+    }
+}
+
+void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
+    /**
+     * creates an extent which is slightly larger than the bounding box of all provided points
+     */
+    for(int j = 0; j < 3; j++){
+        ret_extent[0][j] = points[j+1];
+        ret_extent[1][j] = points[j+1];
+    }
+    for(size_t i = 1; i < n_atoms; i++){
+        for(int j = 0; j < 3; j++){
+            float v = points[i*4 + j + 1];
+            if(v < ret_extent[0][j])
+                ret_extent[0][j] = v;
+            if(v > ret_extent[1][j])
+                ret_extent[1][j] = v;
+        }
+    }        
+    for(int j = 0; j < 3; j++){
+        ret_extent[0][j] -= 2;
+    }
+    for(int j = 0; j < 3; j++){
+        ret_extent[1][j] += 2;
     }
 }
 
