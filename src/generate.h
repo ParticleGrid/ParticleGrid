@@ -8,8 +8,9 @@
 
 typedef struct OutputSpec {
     float ext[2][3];
-    float erf_inner_c, erf_outer_c;
-    int W, H, D;
+    float erf_inner_c[3]
+    float erf_outer_c;
+    int shape[3];
     int N;
 } OutputSpec;
 
@@ -50,6 +51,8 @@ static inline void erf_helper(float* erf_i, float pos, int bound, float ic, floa
 }
 
 static inline bool erf_range_helper(int range[2], int center, int grid_shape, float* erf_i){
+    // calculate the range where the erf is non-zero (inclusive)
+    // return true if the range can be skipped (is all zeros)
     int i = center;
     if(i < 0) i = 0;
     if(i > grid_shape) i = grid_shape;
@@ -75,12 +78,8 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
      * Where data comes in the form {c, x, y, z}
      *      c is the channel (as a float), (x, y, z) is the atom's position
      */
-    int grid_shape[3] = {
-        o->W,
-        o->H,
-        o->D
-    };
-    float ic = o->erf_inner_c;
+    int grid_shape[3] = o->shape;
+    float* ic = o->erf_inner_c;
     float oc = o->erf_outer_c;
     // dimensions for full grid
     float grid_dim[3];
@@ -126,9 +125,9 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
             }
             // calculate erf at every cell
             v8sf delta = offsets[dim] - posv[dim];
-            erf_helper_v8f(erfs[dim], delta, grid_shape[dim], ic, cell_dim[dim], grid_dim[dim]);
+            erf_helper_v8f(erfs[dim], delta, grid_shape[dim], ic[dim], cell_dim[dim], grid_dim[dim]);
             #else
-            erf_helper(erfs[dim], pos[dim], grid_shape[dim], ic, cell_dim[dim], grid_dim[dim]);
+            erf_helper(erfs[dim], pos[dim], grid_shape[dim], ic[dim], cell_dim[dim], grid_dim[dim]);
             #endif
             #ifndef NO_SPARSE
             int center = (int)( (pos[dim])/cell_dim[dim] );
@@ -180,6 +179,8 @@ static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec*
     }
 }
 
+
+// data setup helpers
 void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
     /**
      * creates an extent which is slightly larger than the bounding box of all provided points
@@ -205,3 +206,16 @@ void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
     }
 }
 
+void fill_output_spec(OutputSpec* ospec, float variance, int W, int H, int D, int N, float* extent) {
+    *ospec = {
+        .ext = {},
+        .erf_inner_c = {},
+        .erf_outer_c = 0.125,
+        .shape = {W, H, D},
+        .N = N
+    };
+    memcpy(&ospec->ext, extent, 6*sizeof(float));
+    for(int i3 = 0; i3 < 3; i3++){
+        ospec->erf_inner_c[i3] = (float)(ospec->shape[i3]/(ospec->ext[i3]*SQRT_2*variance))
+    }
+}

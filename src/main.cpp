@@ -66,19 +66,12 @@ py::array_t<float> coord_to_grid(npcarray points,
     float* out_tensor = (float*)tensor.request().ptr;
 
     memset(out_tensor, 0, num_channels*grid_size*grid_size*grid_size*sizeof(float));
- 
-    OutputSpec out = {
-        .ext = {
-            {0, 0, 0},
-            {width, height, depth}
-        },
-        .erf_inner_c = (float)(1/(SQRT_2*variance)),
-        .erf_outer_c = 0.125,
-        .W = grid_size,
-        .H = grid_size,
-        .D = grid_size,
-        .N = num_channels,
-    };
+    OutputSpec out; 
+    float ext[2][3] = { 
+        {0, 0, 0},
+        {width, height, depth}
+    }
+    fill_output_spec(&out, grid_size, grid_size, grid_size, num_channels);
     gaussian_erf(n_atoms, point_ptr, &out, out_tensor);
     return tensor;
 }
@@ -145,22 +138,17 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
         info.molecules = &array_pointers[i];
         info.tensor_out = out_tensor + stride*i;
         for(int i2 = 0; i2 < chunk_size && i2 < info.n_molecules; i2++){
-            out_specs[i+i2] = {
-                .ext = {},
-                .erf_inner_c = (float)(1/(SQRT_2*variance)),
-                .erf_outer_c = 0.125,
-                .W = W,
-                .H = H,
-                .D = D,
-                .N = N
-            };
-            if(extent_ptr){
-                float* a = &extent_ptr[(i+i2)*6];
-                memcpy(out_specs[i+i2].ext, a, 6*sizeof(float));
+            float* given_extent = nullptr;
+            if(extent_ptr) {
+                given_extent = &extent_ptr[(i+i2)*6];
             }
             else{
-                get_grid_extent(info.molecule_sizes[i2], info.molecules[i2], out_specs[i+i2].ext);
+                get_grid_extent(info.molecule_sizes[i2], info.molecules[i2], ospec->ext);
             }
+            fill_output_spec(&out_specs[i+i2], 
+                    variance,
+                    W, H, D, N, 
+                    given_extent);
         }
         info.outs = &out_specs[i];
         {
