@@ -4,11 +4,11 @@
 #include "generate.h"
 #include "tensor_handling.hpp"
 
-#define SHAPE 256
+#define SHAPE 64
+#define ITER 1
 
 int main(){
-    float variance = 0.1;
-    float ic = (float)(1/(SQRT_2*variance));
+    float variance = 1;
     int n_mols = 0;
     FILE* f = fopen("test_input.mol", "r");
     fread(&n_mols, 4, 1, f);
@@ -24,13 +24,16 @@ int main(){
         mols[i] = (float*)malloc(sizes[i]*4*sizeof(float));
         fread(mols[i], sizeof(float), sizes[i]*4, f);
     }
-    for(int j = 0; j < 10; j++){
+    int N = 8;
+    for(int j = 0; j < ITER; j++){
         for(int i = 0; i < n_mols; i++){
-            OutputSpec o;
-            fill_output_spec(&o, variance, SHAPE, SHAPE, SHAPE, N, nullptr);
-            get_grid_extent(sizes[i], points, o.ext);
             float* points = mols[i];
-            gaussian_erf(sizes[i], points, &o, tensor+i*8*SHAPE*SHAPE*SHAPE);
+            OutputSpec o;
+            float ext[2][3];
+            get_grid_extent(sizes[i], points, ext);
+            fill_output_spec(&o, variance, SHAPE, SHAPE, SHAPE, N, (float*)ext);
+            gaussian_erf(sizes[i], points, &o, tensor+i*N*SHAPE*SHAPE*SHAPE);
         }
     }
+    display_tensor_xy(SHAPE, SHAPE, SHAPE, tensor, 4);
 }

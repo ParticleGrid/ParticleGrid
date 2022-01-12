@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string.h>
+
 #include "perfdef.h"
 #include "avx_erf.hpp"
 
@@ -101,8 +103,6 @@ void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
     }        
     for(int j = 0; j < 3; j++){
         ret_extent[0][j] -= 2;
-    }
-    for(int j = 0; j < 3; j++){
         ret_extent[1][j] += 2;
     }
 }
@@ -115,10 +115,11 @@ void fill_output_spec(OutputSpec* ospec, float variance, int W, int H, int D, in
         .shape = {W, H, D},
         .N = N
     };
-    if(extent){
-        memcpy(&ospec->ext, extent, 6*sizeof(float));
-    }
+    memcpy((float*)&ospec->ext, extent, 6*sizeof(float));
     for(int i3 = 0; i3 < 3; i3++){
-        ospec->erf_inner_c[i3] = (float)(ospec->shape[i3]/(ospec->ext[i3]*SQRT_2*variance))
+        float span = ospec->ext[1][i3] - ospec->ext[0][i3];
+        float ic = (float)(ospec->shape[i3]/(span*SQRT_2*variance));
+        ospec->erf_inner_c[i3] = ic;
+        printf("inner %d %f %f\n", i3, ic, span);
     }
 }
