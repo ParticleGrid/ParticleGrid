@@ -91,8 +91,6 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     int N = tensor.shape(1);
     ssize_t M = tensor.shape(0);
 
-    // printf("w: %f, h: %f, d: %f, W: %d, H: %d, D: %d\n", width, height, depth, W, H, D);
-
     std::vector<int> array_sizes;
     std::vector<float*> array_pointers;
     OutputSpec out_specs[M];
@@ -125,11 +123,6 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     if(extents){
         extent_ptr = (float*)extents->request().ptr;
     }
-
-    // printf("-=-=-=-=-=-=- Before -=-=-=-=-=-=-\n");
-    // for(int i = 0; i < N; i += 1){
-        // display_tensor(W, H, D, out_tensor + stride*i, 4);
-    // }
 
     for(int i = 0; i < (int)array_pointers.size(); i += chunk_size){
         PyConsumeInfo info;

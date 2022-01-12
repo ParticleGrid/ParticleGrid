@@ -26,17 +26,10 @@ int main(){
     }
     for(int j = 0; j < 10; j++){
         for(int i = 0; i < n_mols; i++){
-            OutputSpec o = {
-                .ext = {},
-                .erf_inner_c = ic,
-                .erf_outer_c = 0.125,
-                .W = SHAPE,
-                .H = SHAPE,
-                .D = SHAPE,
-                .N = 8
-            };
-            float* points = mols[i];
+            OutputSpec o;
+            fill_output_spec(&o, variance, SHAPE, SHAPE, SHAPE, N, nullptr);
             get_grid_extent(sizes[i], points, o.ext);
+            float* points = mols[i];
             gaussian_erf(sizes[i], points, &o, tensor+i*8*SHAPE*SHAPE*SHAPE);
         }
     }

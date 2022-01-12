@@ -8,7 +8,7 @@
 
 typedef struct OutputSpec {
     float ext[2][3];
-    float erf_inner_c[3]
+    float erf_inner_c[3];
     float erf_outer_c;
     int shape[3];
     int N;
@@ -70,115 +70,16 @@ static inline bool erf_range_helper(int range[2], int center, int grid_shape, fl
     return 0;
 }
 
-static inline void gaussian_erf(size_t n_atoms, const float* points, OutputSpec* o, float* tensor){
-    /**
-     * Generate a tensor in `tensor` using the information provided
-     *
-     * `points` is an array of size `n_atoms*4`
-     * Where data comes in the form {c, x, y, z}
-     *      c is the channel (as a float), (x, y, z) is the atom's position
-     */
-    int grid_shape[3] = o->shape;
-    float* ic = o->erf_inner_c;
-    float oc = o->erf_outer_c;
-    // dimensions for full grid
-    float grid_dim[3];
-    // dimensions for individual grid cells
-    float cell_dim[3];
-    for(int i = 0; i < 3; i++){
-        grid_dim[i] = o->ext[1][i] - o->ext[0][i];
-        cell_dim[i] = grid_dim[i]/grid_shape[i];
-    };
-    // where data will be stored about the erf function calculations
-    alignas (32) float erfx[o->W+1];
-    alignas (32) float erfy[o->H+1];
-    alignas (32) float erfz[o->D+1];
-    float* erfs[] = {
-        erfx, erfy, erfz
-    };
-    
-    for(size_t point = 0; point < n_atoms; point++){
-        int channel = (int)points[point*4];
-        int tens_offset = o->W*o->H*o->D*channel;
-        float pos[3];
-        int atom_spans[3][2];
-        #ifdef V8F
-        v8sf posv[3];
-        #endif
-        // get atom positions
-        for(int i = 0; i < 3; i++){
-            pos[i] = points[point*4 + i + 1] - o->ext[0][i];
-            #ifdef V8F
-            posv[i] = _mm256_broadcast_ss(&pos[i]);
-            #endif
-        }
+// The following is not a true header file. it is a function
+// It is created twice with different names by these includes
+#ifdef V8F
+#define GAUSS_V8F
+#endif
+#include "gaussian_erf.h"
 
-        // represents spaces between cells
-        #ifdef V8F
-        v8sf offsets[3];
-        #endif
-        bool skip = 0;
-        for(int dim = 0; dim < 3; dim++){
-            #ifdef V8F
-            for(int idx = 0; idx < 8; idx++){
-                offsets[dim][idx] = idx*cell_dim[dim];
-            }
-            // calculate erf at every cell
-            v8sf delta = offsets[dim] - posv[dim];
-            erf_helper_v8f(erfs[dim], delta, grid_shape[dim], ic[dim], cell_dim[dim], grid_dim[dim]);
-            #else
-            erf_helper(erfs[dim], pos[dim], grid_shape[dim], ic[dim], cell_dim[dim], grid_dim[dim]);
-            #endif
-            #ifndef NO_SPARSE
-            int center = (int)( (pos[dim])/cell_dim[dim] );
-            skip = erf_range_helper(atom_spans[dim], center, grid_shape[dim], erfs[dim]);
-            if(skip) break;
-            #else
-            atom_spans[dim][0] = 0;
-            atom_spans[dim][1] = grid_shape[dim]-1;
-            #endif
-        }
-        if(skip){
-            continue;
-        }
-
-        #ifdef V8F
-        if(atom_spans[0][0] % 8)
-            atom_spans[0][0] -= atom_spans[0][0] % 8;
-        if(atom_spans[0][1] % 8 == 0)
-            atom_spans[0][1] += 8;
-        #endif
-
-        int HH = o->H;
-        int WW = o->W;
-
-        // multiply the erf values together to get the final volume integration
-        #ifdef OMP_ON
-        #pragma omp parallel for
-        #endif
-        for(int k = atom_spans[2][0]; k <= atom_spans[2][1]; k++){
-            float z_erf = erfz[k] * oc;
-            size_t koff = k*WW*HH + tens_offset;
-            for(int j = atom_spans[1][0]; j <= atom_spans[1][1]; j++){
-                float yz_erf = erfy[j] * z_erf;
-                size_t kjoff = koff + j*WW;
-                for(int i = atom_spans[0][0]; i < atom_spans[0][1]; i+=VSIZE){
-                    size_t idx = i + kjoff;
-                    #ifdef V8F
-                    v8sf erfxv = _mm256_load_ps(erfx+i);
-                    v8sf tmp = _mm256_loadu_ps(&tensor[idx]);
-                    tmp = tmp + (erfxv * yz_erf);
-                    _mm256_storeu_ps(&tensor[idx], tmp);
-                    #else
-                    float v = erfx[i]*yz_erf;
-                    tensor[idx] += v;
-                    #endif
-                }
-            }
-        }
-    }
-}
-
+#undef GAUSS_V8F
+#define ERF_FN_NAME gaussian_erf_noavx
+#include "gaussian_erf.h"
 
 // data setup helpers
 void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
@@ -214,7 +115,9 @@ void fill_output_spec(OutputSpec* ospec, float variance, int W, int H, int D, in
         .shape = {W, H, D},
         .N = N
     };
-    memcpy(&ospec->ext, extent, 6*sizeof(float));
+    if(extent){
+        memcpy(&ospec->ext, extent, 6*sizeof(float));
+    }
     for(int i3 = 0; i3 < 3; i3++){
         ospec->erf_inner_c[i3] = (float)(ospec->shape[i3]/(ospec->ext[i3]*SQRT_2*variance))
     }
