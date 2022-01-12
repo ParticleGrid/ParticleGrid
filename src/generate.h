@@ -116,10 +116,13 @@ void fill_output_spec(OutputSpec* ospec, float variance, int W, int H, int D, in
         .N = N
     };
     memcpy((float*)&ospec->ext, extent, 6*sizeof(float));
-    for(int i3 = 0; i3 < 3; i3++){
-        float span = ospec->ext[1][i3] - ospec->ext[0][i3];
-        float ic = (float)(ospec->shape[i3]/(span*SQRT_2*variance));
-        ospec->erf_inner_c[i3] = ic;
-        printf("inner %d %f %f\n", i3, ic, span);
+    for(int i = 0; i < 3; i++){
+        float span = ospec->ext[1][i] - ospec->ext[0][i];
+        float ic = (float)(ospec->shape[i]/(span*SQRT_2*variance));
+        ospec->erf_inner_c[i] = ic;
+        // if(i == 0){
+            // ospec->erf_inner_c[i] *= 10;
+        // }
+        // printf("inner %d %f %f\n", i, ic, span);
     }
 }
