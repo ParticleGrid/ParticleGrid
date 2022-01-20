@@ -22,34 +22,6 @@ namespace py = pybind11;
 
 typedef py::array_t<float, py::array::c_style | py::array::forcecast> npcarray;
 
-void datagen_consumer_avx_py(PyDataQueue* data_ptr){
-    /* a consumer for multithreaded calculation */
-    while(true){
-        PyDataQueue& data = *data_ptr;
-        PyConsumeInfo info;
-        {
-            std::unique_lock<std::mutex> lock(data.mtx);
-            while(data.consume_queue.empty()){
-                if(data.done) return;
-                data.cv.wait(lock);
-            }
-            info = data.consume_queue.front();
-            data.consume_queue.pop_front();
-        }
-        OutputSpec* out = &info.outs[0];
-        size_t stride = out->H*out->W*out->D*out->N;
-        for(int i = 0; i < info.n_molecules; i++){
-            OutputSpec* out = &info.outs[i];
-            gaussian_erf(info.molecule_sizes[i], info.molecules[i], out, info.tensor_out + stride*i);
-        }
-        {
-            std::unique_lock<std::mutex> lock(data.mtx);
-            data.amt_done++;
-            data.cv.notify_all();
-        }
-    }
-}
-
 py::array_t<float> coord_to_grid(npcarray points,
                    const float width, const float height, const float depth,
                    const int grid_size, const int num_channels, float variance = 0.04){
@@ -77,7 +49,7 @@ py::array_t<float> coord_to_grid(npcarray points,
 }
 
 void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
-            float variance = 0.04, int n_threads = N_THREADS){
+            float variance = 0.04){
     /* c interface for the add_to_grid function.
      * adds provided molecules to the provided tensors
      * with optional user-specified extents
@@ -91,32 +63,6 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     int N = tensor.shape(1);
     ssize_t M = tensor.shape(0);
 
-    std::vector<int> array_sizes;
-    std::vector<float*> array_pointers;
-    OutputSpec out_specs[M];
-
-    for(py::handle m : molecules){
-        npcarray points = py::cast<npcarray>(m);
-        ssize_t s = points.shape(0);
-        ssize_t s2 = points.shape(1);
-        array_sizes.push_back(s);
-
-        float* point_ptr = (float*)points.request().ptr;
-        float* f = new float[s*s2];
-        memcpy(f, point_ptr, s*s2*sizeof(float));
-        array_pointers.push_back(f);
-    }
-
-    long chunk_size = 8;
-    if(n_threads == 0) n_threads = std::thread::hardware_concurrency(); 
-    std::vector<std::thread> threads;
-    PyDataQueue data_queue;
-    data_queue.n_molecules = chunk_size;
-
-    for(int i = 0; i < n_threads; i++){
-        threads.push_back(std::thread(datagen_consumer_avx_py, &data_queue));
-    }
-
     size_t stride = H*W*D*N;
     float* out_tensor = (float*)tensor.request().ptr;
     float* extent_ptr = nullptr;
@@ -124,40 +70,58 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
         extent_ptr = (float*)extents->request().ptr;
     }
 
-    for(int i = 0; i < (int)array_pointers.size(); i += chunk_size){
-        PyConsumeInfo info;
-        info.n_molecules = std::min(chunk_size, M - i);
-        info.molecule_sizes = &array_sizes[i];
-        info.molecules = &array_pointers[i];
-        info.tensor_out = out_tensor + stride*i;
-        for(int i2 = 0; i2 < chunk_size && i2 < info.n_molecules; i2++){
-            float* given_extent = nullptr;
-            if(extent_ptr) {
-                given_extent = &extent_ptr[(i+i2)*6];
-            }
-            else{
-                get_grid_extent(info.molecule_sizes[i2], info.molecules[i2], ospec->ext);
-            }
-            fill_output_spec(&out_specs[i+i2], 
-                    variance,
-                    W, H, D, N, 
-                    given_extent);
-        }
-        info.outs = &out_specs[i];
-        {
-            std::unique_lock<std::mutex> lock(data_queue.mtx);
-            data_queue.consume_queue.push_back(info);
-            data_queue.cv.notify_one();
-        }
-    }
-    {
-        std::unique_lock<std::mutex> lock(data_queue.mtx);
-        data_queue.done = true;
-        data_queue.cv.notify_all();
-    }
+    for(py::handle m : molecules){
+        npcarray points = py::cast<npcarray>(m);
+        ssize_t shape = points.shape(0);
 
-    for(auto& tr : threads) tr.join();
-    for(float* f : array_pointers) delete[] f;
+        int num_atoms = shape;
+        float* atom_ptr = (float*)points.request().ptr;
+        float* tensor_out = out_tensor + stride*i;
+
+        OutputSpec out_spec;
+        float* given_extent = nullptr;
+        if(extent_ptr) {
+            given_extent = &extent_ptr[(i+i2)*6];
+        }
+        else{
+            get_grid_extent(info.molecule_sizes[i2], info.molecules[i2], ospec->ext);
+        }
+        fill_output_spec(&out_specs[i+i2], 
+                variance,
+                W, H, D, N, 
+                given_extent);
+        gaussian_erf(num_atoms, atom_ptr, &out_spec, tensor_out);
+    }
+}
+
+py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
+            int W = 32, int H = 32, int D = 32, int N = 1,
+            float variance = 0.04){
+    /*
+     * creates a new tensor and runs add_to grid. Returns the tensor.
+     */
+    size_t M = molecules.size();
+    std::vector<ssize_t> grid_shape = {(ssize_t)M, N, D, H, W};
+    size_t x_stride = W;
+    #ifdef V8F
+    size_t miss = W%8;
+    if(miss) x_stride += (8-miss);
+    #endif
+    std::vector<ssize_t> grid_strides = {(ssize_t)M, N, D, H, x_stride};
+    npcarray grid = py::array_t<float>(py::buffer_info(
+        nullptr, // data (allocated automatically if nullptr)
+        sizeof(float), // item size
+        py::format_descriptor<float>::format(),
+        5, // number of dimensions
+        grid_shape,
+        grid_strides
+    );
+
+    float* out_tensor = (float*)grid.request().ptr;
+    memset(out_tensor, 0, M*N*D*H*x_stride*sizeof(float));
+    add_to_grid_c(molecules, grid, extents, variance);
+
+    return grid;
 }
 
 void add_to_grid(py::list molecules, npcarray tensor,
@@ -166,36 +130,18 @@ void add_to_grid(py::list molecules, npcarray tensor,
     add_to_grid_c(molecules, tensor, nullptr, variance);
 }
 
-py::array_t<float> generate_grid_multithreaded_c(py::list molecules, npcarray* extents,
+py::array_t<float> generate_grid_extents(py::list molecules, npcarray extents,
             int W = 32, int H = 32, int D = 32, int N = 1,
             float variance = 0.04){
-    /*
-     * creates a new tensor and runs add_to grid. Returns the tensor.
-     */
-    size_t M = molecules.size();
-    std::vector<ssize_t> grid_shape = {(ssize_t)M, N, D, H, W};
-    std::vector<ssize_t> grid_strides = {};
-    npcarray grid = py::array_t<float>(grid_shape);
-
-    float* out_tensor = (float*)grid.request().ptr;
-    memset(out_tensor, 0, M*N*W*H*D*sizeof(float));
-    add_to_grid_c(molecules, grid, extents, variance);
-
-    return grid;
+    /* python wrapper, with extents provided */
+    return generate_grid_c(molecules, &extents, W, H, D, N, variance);
 }
 
-py::array_t<float> generate_grid_multithreaded_extents(py::list molecules, npcarray extents,
+py::array_t<float> generate_grid(py::list molecules,
             int W = 32, int H = 32, int D = 32, int N = 1,
             float variance = 0.04){
     /* python wrapper */
-    return generate_grid_multithreaded_c(molecules, &extents, W, H, D, N, variance);
-}
-
-py::array_t<float> generate_grid_multithreaded(py::list molecules,
-            int W = 32, int H = 32, int D = 32, int N = 1,
-            float variance = 0.04){
-    /* python wrapper */
-    return generate_grid_multithreaded_c(molecules, nullptr, W, H, D, N, variance);
+    return generate_grid_c(molecules, nullptr, W, H, D, N, variance);
 }
 
 void display_tensor_py(npcarray tensor, int show_max = 10){
@@ -232,12 +178,12 @@ PYBIND11_MODULE(GridGenerator, m) {
           py::arg("points"),
           py::arg("width"), py::arg("height"), py::arg("depth"),
           py::arg("grid_size"), py::arg("num_channels"),py::arg("variance") = 0.04);
-    m.def("generate_grid", &generate_grid_multithreaded, 
+    m.def("generate_grid", &generate_grid, 
             "Generate a grid from a list of Nx4 numpy arrays", 
             py::arg("molecules"), py::arg("W") = 32, py::arg("H") = 32, py::arg("D") = 32, py::arg("N") = 1,
             py::arg("variance") = 0.04);
-    m.def("generate_grid_extents", &generate_grid_multithreaded_extents, 
-            "Generate a grid from a list of Nx4 numpy arrays",  
+    m.def("generate_grid_extents", &generate_grid_extents, 
+            "Generate a grid from a list of Nx4 numpy arrays, with provided extents",  
             py::arg("molecules"), py::arg("extents"), py::arg("W") = 32, py::arg("H") = 32, py::arg("D") = 32, py::arg("N") = 1,
             py::arg("variance") = 0.04);
     m.def("add_to_grid", &add_to_grid, 

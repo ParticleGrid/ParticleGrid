@@ -72,7 +72,7 @@ static inline bool erf_range_helper(int range[2], int center, int grid_shape, fl
     return 0;
 }
 
-// The following is not a true header file. it is a function
+// The following is not a true header file. It is a function.
 // It is created twice with different names by these includes
 #ifdef V8F
 #define GAUSS_V8F
