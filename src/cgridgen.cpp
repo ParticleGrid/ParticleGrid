@@ -63,7 +63,7 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     int N = tensor.shape(1);
     // ssize_t M = tensor.shape(0);
 
-    size_t stride = H*W*D*N;
+    size_t stride = tensor.strides(0);
     float* out_tensor = (float*)tensor.request().ptr;
     float* extent_ptr = nullptr;
     if(extents){
@@ -80,17 +80,25 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
 
         OutputSpec out_spec;
         float* given_extent = nullptr;
+        float ext[2][3];
         if(extent_ptr) {
             given_extent = &extent_ptr[i*6];
         }
         else{
-            get_grid_extent(num_atoms, atom_ptr, out_spec.ext);
+            get_grid_extent(num_atoms, atom_ptr, ext);
+            given_extent = (float*)ext;
         }
         fill_output_spec(&out_spec, 
                 variance,
                 W, H, D, N, 
                 given_extent);
         gaussian_erf(num_atoms, atom_ptr, &out_spec, tensor_out);
+        /*
+        printf("A %d %d %d %d\n", W, H, D, N);
+        for(int i = 0; i < 6; i++){
+            printf("%f\n", ((float*)out_spec.ext)[i]);
+        }
+        */
         i++;
     }
 }
@@ -99,7 +107,7 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
             int W = 32, int H = 32, int D = 32, int N = 1,
             float variance = 0.04){
     /*
-     * creates a new tensor and runs add_to grid. Returns the tensor.
+     * creates a new tensor and runs add_to_grid. Returns the tensor.
      */
     size_t M = molecules.size();
     std::vector<ssize_t> grid_shape = {(ssize_t)M, N, D, H, W};
@@ -108,7 +116,11 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
     size_t miss = W%8;
     if(miss) x_stride += (8-miss);
     #endif
-    std::vector<ssize_t> grid_strides = {(ssize_t)M, N, D, H, (ssize_t)x_stride};
+    std::vector<ssize_t> grid_strides = {N, D, H, x_stride, sizeof(float)};
+    for(int i = grid_strides.size() - 2; i >= 0; i--) {
+        grid_strides[i] *= grid_strides[i+1];
+        // printf("%ld\n", grid_strides[i]);
+    }
     npcarray grid = py::array_t<float>(py::buffer_info(
         nullptr, // data (allocated automatically if nullptr)
         sizeof(float), // item size
@@ -117,9 +129,16 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
         grid_shape,
         grid_strides
     ));
+    #if 0
+    npcarray grid = py::array_t<float>(grid_shape);
+    for(int i = 0; i < 5; i++) {
+        printf("%ld\n", grid.strides(i));
+    }
+    #endif
 
     float* out_tensor = (float*)grid.request().ptr;
-    memset(out_tensor, 0, M*N*D*H*x_stride*sizeof(float));
+    printf("OUT %p %p", out_tensor, out_tensor+M*grid.strides(0));
+    memset(out_tensor, 0, M*grid.strides(0));
     add_to_grid_c(molecules, grid, extents, variance);
 
     return grid;
@@ -172,7 +191,7 @@ void validate_tensor_py(npcarray tensor, bool check_zero = false){
 }
 
 
-PYBIND11_MODULE(GridGenerator, m) {
+PYBIND11_MODULE(ParticleGrid, m) {
     m.doc() = "Generate grids from point clouds";
     m.def("coord_to_grid", &coord_to_grid,
           "Convert a single 4-D point-cloud to grid",
