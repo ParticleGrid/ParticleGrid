@@ -42,8 +42,8 @@ py::array_t<float> coord_to_grid(npcarray points,
     float ext[2][3] = { 
         {0, 0, 0},
         {width, height, depth}
-    }
-    fill_output_spec(&out, grid_size, grid_size, grid_size, num_channels);
+    };
+    fill_output_spec(&out, variance, grid_size, grid_size, grid_size, num_channels, (float*)ext);
     gaussian_erf(n_atoms, point_ptr, &out, out_tensor);
     return tensor;
 }
@@ -61,7 +61,7 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     int H = tensor.shape(3);
     int D = tensor.shape(2);
     int N = tensor.shape(1);
-    ssize_t M = tensor.shape(0);
+    // ssize_t M = tensor.shape(0);
 
     size_t stride = H*W*D*N;
     float* out_tensor = (float*)tensor.request().ptr;
@@ -69,7 +69,7 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     if(extents){
         extent_ptr = (float*)extents->request().ptr;
     }
-
+    size_t i = 0;
     for(py::handle m : molecules){
         npcarray points = py::cast<npcarray>(m);
         ssize_t shape = points.shape(0);
@@ -81,16 +81,17 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
         OutputSpec out_spec;
         float* given_extent = nullptr;
         if(extent_ptr) {
-            given_extent = &extent_ptr[(i+i2)*6];
+            given_extent = &extent_ptr[i*6];
         }
         else{
-            get_grid_extent(info.molecule_sizes[i2], info.molecules[i2], ospec->ext);
+            get_grid_extent(num_atoms, atom_ptr, out_spec.ext);
         }
-        fill_output_spec(&out_specs[i+i2], 
+        fill_output_spec(&out_spec, 
                 variance,
                 W, H, D, N, 
                 given_extent);
         gaussian_erf(num_atoms, atom_ptr, &out_spec, tensor_out);
+        i++;
     }
 }
 
@@ -107,7 +108,7 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
     size_t miss = W%8;
     if(miss) x_stride += (8-miss);
     #endif
-    std::vector<ssize_t> grid_strides = {(ssize_t)M, N, D, H, x_stride};
+    std::vector<ssize_t> grid_strides = {(ssize_t)M, N, D, H, (ssize_t)x_stride};
     npcarray grid = py::array_t<float>(py::buffer_info(
         nullptr, // data (allocated automatically if nullptr)
         sizeof(float), // item size
@@ -115,7 +116,7 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
         5, // number of dimensions
         grid_shape,
         grid_strides
-    );
+    ));
 
     float* out_tensor = (float*)grid.request().ptr;
     memset(out_tensor, 0, M*N*D*H*x_stride*sizeof(float));
