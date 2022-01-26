@@ -56,7 +56,7 @@ void add_to_grid_c(py::list molecules, const std::vector<ssize_t>& shape, const 
      * with optional user-specified extents
      */
 
-    int W = strides[3]/sizeof(float);
+    int W = shape[4];
     int H = shape[3];
     int D = shape[2];
     int N = shape[1];

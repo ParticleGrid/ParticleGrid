@@ -12,13 +12,13 @@ typedef struct OutputSpec {
     float ext[2][3];
     float erf_inner_c[3];
     float erf_outer_c;
-    int shape[3];
-    int N;
+    size_t shape[4];
+    size_t strides[4];
 } OutputSpec;
 
 #ifdef V8F
 static inline void erf_helper_v8f(float* erf_i, v8sf delta, int bound, float ic, float cell_i, float dim_size){
-    // Calculate error function at each grid points
+    // Calculate error function at each grid points. erf_i should be an array with 8 floats of padding at the end
 
     int i;
     for (i = 0; i <= bound; i+=8){
@@ -28,7 +28,7 @@ static inline void erf_helper_v8f(float* erf_i, v8sf delta, int bound, float ic,
     }
 
     // Calculate error function difference at each interval in the grid point
-    for(int i = 0; i <= bound; i+=8){
+    for(int i = 0; i < bound; i+=8){
         v8sf erfv = _mm256_load_ps(erf_i+i);
         v8sf erfv2 = _mm256_loadu_ps(erf_i+i+1);
         v8sf res = erfv2-erfv;
@@ -53,7 +53,7 @@ static inline void erf_helper(float* erf_i, float pos, int bound, float ic, floa
     }
 }
 
-static inline bool erf_range_helper(int range[2], int center, int grid_shape, float* erf_i){
+static inline bool erf_range_helper(size_t range[2], int center, int grid_shape, float* erf_i){
     // calculate the range where the erf is non-zero (inclusive)
     // return true if the range can be skipped (is all zeros)
     int i = center;
@@ -108,13 +108,21 @@ void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
     }
 }
 
-void fill_output_spec(OutputSpec* ospec, float variance, int W, int H, int D, int N, float* extent) {
+void fill_output_spec(OutputSpec* ospec, float variance, size_t W, size_t H, size_t D, size_t N, float* extent) {
+    size_t x_stride = W;
+    #ifdef V8F
+    size_t miss = W%8;
+    if(miss) x_stride += (8-miss);
+    #endif
+    size_t A = 1;
+    size_t B = A*x_stride;
+    size_t C = B*H;
     *ospec = {
         .ext = {},
         .erf_inner_c = {},
         .erf_outer_c = 0.125,
-        .shape = {W, H, D},
-        .N = N
+        .shape = {W, H, D, N},
+        .strides = {A, B, C, C*D}, 
     };
     memcpy((float*)&ospec->ext, extent, 6*sizeof(float));
     for(int i = 0; i < 3; i++){
