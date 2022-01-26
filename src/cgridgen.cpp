@@ -138,13 +138,8 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
         grid_strides[i] *= grid_strides[i+1];
         // printf("%ld\n", grid_strides[i]);
     }
-    #if 1
-    for(int i = 0; i < 5; i++) {
-        printf("%i %ld %ld\n", i, grid_shape[i], grid_strides[i]);
-    }
-    #endif
     float* tmp = nullptr;
-    if(x_stride != W){
+    if(x_stride != (size_t)W){
         tmp = (float*)calloc(M, grid_strides[0]);
         float* extents_float = (float*)optional_npcarray(extents);
         add_to_grid_c(molecules, grid_shape, grid_strides, tmp, extents_float, variance);
@@ -161,9 +156,8 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
     if(tmp) {
         free(tmp);
     }
-    else {
+    else{
         float* out_tensor = (float*)grid.request().ptr;
-        printf("OUT %ld %ld %p %p %ld, %ld\n", M, grid.strides(0), out_tensor, (char*)out_tensor+M*grid.strides(0), M*grid.strides(0)/sizeof(float), M*N*D*H*x_stride);
         memset(out_tensor, 0, M*grid.strides(0));
         add_to_grid_helper(molecules, grid, extents, variance);
     }

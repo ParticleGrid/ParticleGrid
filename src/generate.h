@@ -118,7 +118,7 @@ void fill_output_spec(OutputSpec* ospec, float variance, int W, int H, int D, in
     memcpy((float*)&ospec->ext, extent, 6*sizeof(float));
     for(int i = 0; i < 3; i++){
         float span = ospec->ext[1][i] - ospec->ext[0][i];
-        float ic = (float)(ospec->shape[i]/(span*SQRT_2*variance));
+        float ic = (float)(1/(SQRT_2*variance*ospec->shape[i]*span));
         ospec->erf_inner_c[i] = ic;
         // if(i == 0){
             // ospec->erf_inner_c[i] *= 10;
