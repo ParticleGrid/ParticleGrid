@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <vector>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <Python.h>
@@ -48,27 +49,22 @@ py::array_t<float> coord_to_grid(npcarray points,
     return tensor;
 }
 
-void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
+void add_to_grid_c(py::list molecules, const std::vector<ssize_t>& shape, const std::vector<ssize_t>& strides, float* tensor, float* extents,
             float variance = 0.04){
     /* c interface for the add_to_grid function.
      * adds provided molecules to the provided tensors
      * with optional user-specified extents
      */
 
-    tensor.unchecked<5>();
-
-    int W = tensor.strides(3)/sizeof(float);
-    int H = tensor.shape(3);
-    int D = tensor.shape(2);
-    int N = tensor.shape(1);
+    int W = strides[3]/sizeof(float);
+    int H = shape[3];
+    int D = shape[2];
+    int N = shape[1];
     // ssize_t M = tensor.shape(0);
 
-    size_t stride = tensor.strides(0)/sizeof(float);
-    float* out_tensor = (float*)tensor.request().ptr;
-    float* extent_ptr = nullptr;
-    if(extents){
-        extent_ptr = (float*)extents->request().ptr;
-    }
+    size_t stride = strides[0]/sizeof(float);
+    float* out_tensor = tensor;
+    float* extent_ptr = extents;
     size_t i = 0;
     for(py::handle m : molecules){
         npcarray points = py::cast<npcarray>(m);
@@ -104,6 +100,26 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
     }
 }
 
+void* optional_npcarray(npcarray* arr){
+    if(!arr) return nullptr;
+    return arr->request().ptr;
+}
+
+void add_to_grid_helper(py::list molecules, npcarray tensor, npcarray* extents,
+            float variance = 0.04){
+    /* python wrapper */
+    tensor.unchecked<5>();
+    ssize_t ndim = tensor.ndim();
+    std::vector<ssize_t> shape(ndim);
+    std::vector<ssize_t> stride(ndim);
+    for(int i = 0; i < ndim; i++){
+        shape[i] = tensor.shape(i);
+        stride[i] = tensor.strides(i);
+    }
+    float* extents_float = (float*)optional_npcarray(extents);
+    add_to_grid_c(molecules, shape, stride, (float*)tensor.request().ptr, extents_float, variance);
+}
+
 py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
             int W = 32, int H = 32, int D = 32, int N = 1,
             float variance = 0.04){
@@ -126,29 +142,33 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
     for(int i = 0; i < 5; i++) {
         printf("%i %ld %ld\n", i, grid_shape[i], grid_strides[i]);
     }
-    // npcarray grid = py::array_t<float>(grid_shape);
     #endif
+    float* tmp = nullptr;
+    if(x_stride != W){
+        tmp = (float*)calloc(M, grid_strides[0]);
+        float* extents_float = (float*)optional_npcarray(extents);
+        add_to_grid_c(molecules, grid_shape, grid_strides, tmp, extents_float, variance);
+    }
     npcarray grid = py::array_t<float>(py::buffer_info(
-        nullptr, // data (copied from here if not null)
+        tmp, // data (copied from here if not null)
         sizeof(float), // item size
         py::format_descriptor<float>::format(),
-        5, // number of dimensions
+        grid_shape.size(), // number of dimensions
         grid_shape,
         grid_strides
     ));
 
-    float* out_tensor = (float*)grid.request().ptr;
-    memset(out_tensor, 0, M*grid.strides(0));
-    printf("OUT %ld %ld %p %p %ld, %ld\n", M, grid.strides(0), out_tensor, (char*)out_tensor+M*grid.strides(0), M*grid.strides(0)/sizeof(float), M*N*D*H*x_stride);
-    add_to_grid_c(molecules, grid, extents, variance);
+    if(tmp) {
+        free(tmp);
+    }
+    else {
+        float* out_tensor = (float*)grid.request().ptr;
+        printf("OUT %ld %ld %p %p %ld, %ld\n", M, grid.strides(0), out_tensor, (char*)out_tensor+M*grid.strides(0), M*grid.strides(0)/sizeof(float), M*N*D*H*x_stride);
+        memset(out_tensor, 0, M*grid.strides(0));
+        add_to_grid_helper(molecules, grid, extents, variance);
+    }
 
     return grid;
-}
-
-void add_to_grid(py::list molecules, npcarray tensor,
-            float variance = 0.04){
-    /* python wrapper */
-    add_to_grid_c(molecules, tensor, nullptr, variance);
 }
 
 py::array_t<float> generate_grid_extents(py::list molecules, npcarray extents,
@@ -191,7 +211,6 @@ void validate_tensor_py(npcarray tensor, bool check_zero = false){
     validate_tensor(M, N, W, H, D, ptr, check_zero);
 }
 
-
 PYBIND11_MODULE(ParticleGrid, m) {
     m.doc() = "Generate grids from point clouds";
     m.def("coord_to_grid", &coord_to_grid,
@@ -206,10 +225,6 @@ PYBIND11_MODULE(ParticleGrid, m) {
     m.def("generate_grid_extents", &generate_grid_extents, 
             "Generate a grid from a list of Nx4 numpy arrays, with provided extents",  
             py::arg("molecules"), py::arg("extents"), py::arg("W") = 32, py::arg("H") = 32, py::arg("D") = 32, py::arg("N") = 1,
-            py::arg("variance") = 0.04);
-    m.def("add_to_grid", &add_to_grid, 
-            "Add molecule data to a pre-existing grid", 
-            py::arg("molecules"), py::arg("tensor"),
             py::arg("variance") = 0.04);
     m.def("display_tensor", &display_tensor_py, 
             "Display the tensor in an ascii graph depiction", 
