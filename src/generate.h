@@ -20,18 +20,19 @@ typedef struct OutputSpec {
 static inline void erf_helper_v8f(float* erf_i, v8sf delta, int bound, float ic, float cell_i, float dim_size){
     // Calculate error function at each grid points
 
-    for (int i = 0; i+8 <= bound; i+=8){
+    int i;
+    for (i = 0; i <= bound; i+=8){
         v8sf erfv = erf256_ps(delta * ic);
         _mm256_store_ps(erf_i+i, erfv);
         delta += cell_i * 8;
     }
-    erf_i[bound] = erf_apx(dim_size*ic);
 
     // Calculate error function difference at each interval in the grid point
-    for(int i = 0; i+8 <= bound; i+=8){
+    for(int i = 0; i <= bound; i+=8){
         v8sf erfv = _mm256_load_ps(erf_i+i);
         v8sf erfv2 = _mm256_loadu_ps(erf_i+i+1);
-        _mm256_store_ps(erf_i+i, erfv2-erfv);
+        v8sf res = erfv2-erfv;
+        _mm256_store_ps(erf_i+i, res);
     }
 }
 #endif

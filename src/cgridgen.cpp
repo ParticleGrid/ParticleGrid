@@ -90,12 +90,6 @@ void add_to_grid_c(py::list molecules, const std::vector<ssize_t>& shape, const 
                 given_extent);
         // printf("mol: %ld %ld\n", i, stride*i);
         gaussian_erf(num_atoms, atom_ptr, &out_spec, tensor_out);
-        /*
-        printf("A %d %d %d %d\n", W, H, D, N);
-        for(int i = 0; i < 6; i++){
-            printf("%f\n", ((float*)out_spec.ext)[i]);
-        }
-        */
         i++;
     }
 }
@@ -142,6 +136,7 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
     if(x_stride != (size_t)W){
         tmp = (float*)calloc(M, grid_strides[0]);
         float* extents_float = (float*)optional_npcarray(extents);
+        printf("OUT %p %p\n", tmp, (char*)tmp + M*grid_strides[0]);
         add_to_grid_c(molecules, grid_shape, grid_strides, tmp, extents_float, variance);
     }
     npcarray grid = py::array_t<float>(py::buffer_info(
