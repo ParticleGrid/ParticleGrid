@@ -57,13 +57,13 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
 
     tensor.unchecked<5>();
 
-    int W = tensor.shape(4);
+    int W = tensor.strides(3)/sizeof(float);
     int H = tensor.shape(3);
     int D = tensor.shape(2);
     int N = tensor.shape(1);
     // ssize_t M = tensor.shape(0);
 
-    size_t stride = tensor.strides(0);
+    size_t stride = tensor.strides(0)/sizeof(float);
     float* out_tensor = (float*)tensor.request().ptr;
     float* extent_ptr = nullptr;
     if(extents){
@@ -92,6 +92,7 @@ void add_to_grid_c(py::list molecules, npcarray tensor, npcarray* extents,
                 variance,
                 W, H, D, N, 
                 given_extent);
+        // printf("mol: %ld %ld\n", i, stride*i);
         gaussian_erf(num_atoms, atom_ptr, &out_spec, tensor_out);
         /*
         printf("A %d %d %d %d\n", W, H, D, N);
@@ -116,29 +117,29 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
     size_t miss = W%8;
     if(miss) x_stride += (8-miss);
     #endif
-    std::vector<ssize_t> grid_strides = {N, D, H, x_stride, sizeof(float)};
+    std::vector<ssize_t> grid_strides = {N, D, H, (ssize_t)x_stride, (ssize_t)sizeof(float)};
     for(int i = grid_strides.size() - 2; i >= 0; i--) {
         grid_strides[i] *= grid_strides[i+1];
         // printf("%ld\n", grid_strides[i]);
     }
+    #if 1
+    for(int i = 0; i < 5; i++) {
+        printf("%i %ld %ld\n", i, grid_shape[i], grid_strides[i]);
+    }
+    // npcarray grid = py::array_t<float>(grid_shape);
+    #endif
     npcarray grid = py::array_t<float>(py::buffer_info(
-        nullptr, // data (allocated automatically if nullptr)
+        nullptr, // data (copied from here if not null)
         sizeof(float), // item size
         py::format_descriptor<float>::format(),
         5, // number of dimensions
         grid_shape,
         grid_strides
     ));
-    #if 0
-    npcarray grid = py::array_t<float>(grid_shape);
-    for(int i = 0; i < 5; i++) {
-        printf("%ld\n", grid.strides(i));
-    }
-    #endif
 
     float* out_tensor = (float*)grid.request().ptr;
-    printf("OUT %p %p", out_tensor, out_tensor+M*grid.strides(0));
     memset(out_tensor, 0, M*grid.strides(0));
+    printf("OUT %ld %ld %p %p %ld, %ld\n", M, grid.strides(0), out_tensor, (char*)out_tensor+M*grid.strides(0), M*grid.strides(0)/sizeof(float), M*N*D*H*x_stride);
     add_to_grid_c(molecules, grid, extents, variance);
 
     return grid;

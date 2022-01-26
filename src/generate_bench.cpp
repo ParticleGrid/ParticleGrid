@@ -4,7 +4,7 @@
 #include "generate.h"
 #include "tensor_handling.hpp"
 
-#define SHAPE 64
+#define SHAPE 16
 #define ITER 1
 
 int main(){
