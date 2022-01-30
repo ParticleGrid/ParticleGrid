@@ -16,6 +16,24 @@ typedef struct OutputSpec {
     size_t strides[4];
 } OutputSpec;
 
+struct atom_spec_t {
+    size_t grid_shape[4];
+    size_t grid_strides[4];
+    float point[3];
+    int channel;
+    // dimensions for full grid, in arbitrary units
+    float grid_dim[3];
+    // dimensions for individual grid cells
+    float cell_dim[3];
+    float erf_inner_c[3];
+    float erf_outer_c;
+    float* tensor;
+};
+
+static inline size_t tensor_size(OutputSpec* o){
+    return o->strides[4]*o->shape[4];
+}
+
 #ifdef V8F
 static inline void erf_helper_v8f(float* erf_i, v8sf delta, int bound, float ic, float cell_i, float dim_size){
     // Calculate error function at each grid points. erf_i should be an array with 8 floats of padding at the end
@@ -81,7 +99,7 @@ static inline bool erf_range_helper(size_t range[2], int center, int grid_shape,
 #include "gaussian_erf.h"
 
 #undef GAUSS_V8F
-#define ERF_FN_NAME gaussian_erf_noavx
+#define GAUSS_SUFFIX _noavx
 #include "gaussian_erf.h"
 
 // data setup helpers

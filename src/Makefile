@@ -1,4 +1,6 @@
 
+#use CDEFS=-DNO_V8F to remove avx support
+
 MAVX=
 ifeq (,$(findstring -DNO_V8F,$(CDEFS)))
     # Found
