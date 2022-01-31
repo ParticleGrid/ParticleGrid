@@ -8,7 +8,7 @@
 #define ITER 1
 
 int main(){
-    float variance = 1;
+    float variance = 0.01;
     int n_mols = 0;
     FILE* f = fopen("test_input.mol", "r");
     fread(&n_mols, 4, 1, f);
