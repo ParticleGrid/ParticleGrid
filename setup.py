@@ -7,7 +7,7 @@ __version__ = "0.0.1"
 min_python_version = '.'.join(map(str, (3, 6, 2)))
 
 pybind_11_extension = Pybind11Extension("GridGenerator",
-                                        ["src/main.cpp"],
+                                        ["src/cgridgen.cpp"],
                                         cxx_std=17,
                                         extra_compile_args=["-mavx", "-fopenmp"],
                                         extra_link_args=['-lgomp'],
