@@ -18,7 +18,7 @@ _cur_dir = osp.dirname(osp.realpath(__file__))
 
 _data_dir = osp.join(_cur_dir)
 
-def benchmark(sizes, variance=0.001):
+def benchmark(sizes, variance=0.6):
 
     _data_file = osp.join(_data_dir,'100_molecules.pickle')
     
@@ -46,7 +46,7 @@ def benchmark(sizes, variance=0.001):
         diff = (b-a)/(10**9)
         print(diff, "s = ", len(mol_data)/diff, "molecules/s")
         ctimes.append(diff)
-        # gg.display_tensor(ctensors[-1], 8)
+        gg.display_tensor(ctensors[-1], 1)
         # for mol in mol_data[:1]:
             # print("# atoms:", len(mol))
         print()
@@ -59,6 +59,6 @@ def benchmark(sizes, variance=0.001):
     
 
 # benchmark([16, 16, 20, 32, 48, 64, 128, 192])
-benchmark([16, 16, 32, 48, 64, 128, 192])
+benchmark([16, 16, 20, 32, 48, 64, 128, 192])
 # benchmark([16, 20, 32, 48, 64, 128])
-# benchmark([16, 20])
+# benchmark([20])

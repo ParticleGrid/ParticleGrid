@@ -138,8 +138,7 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
         float* extents_float = (float*)optional_npcarray(extents);
         add_to_grid_c(molecules, grid_shape, grid_strides, tmp, extents_float, variance);
     }
-    npcarray grid = py::array_t<float>(grid_shape);
-    /*
+    // npcarray grid = py::array_t<float>(grid_shape);
     npcarray grid = py::array_t<float>(py::buffer_info(
         tmp, // data (copied from here if not null)
         sizeof(float), // item size
@@ -148,7 +147,6 @@ py::array_t<float> generate_grid_c(py::list molecules, npcarray* extents,
         grid_shape,
         grid_strides
     ));
-    */
 
     if(tmp) {
         free(tmp);
