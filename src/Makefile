@@ -14,7 +14,7 @@ endif
 
 CFLAGS = -g -O -ffunction-sections -ffast-math -mfma -Wall $(MAVX) $(FOMP) $(CDEFS) $(CEXTRAS)
 
-ParticleGrid: cgridgen.cpp
+GridGenerator: cgridgen.cpp
 	$(CXX) -shared -std=c++11 -fPIC $$(python3 -m pybind11 --includes) $^ -o $@$$(python3-config --extension-suffix) $(CFLAGS)
 
 bench: generate_bench.cpp

@@ -8,7 +8,7 @@ import os.path as osp
 import time
 
 import multiprocessing as mp
-import ParticleGrid as gg
+import GridGenerator as gg
 
 import numpy as np
 

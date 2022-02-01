@@ -202,7 +202,7 @@ void validate_tensor_py(npcarray tensor, bool check_zero = false){
     validate_tensor(M, N, W, H, D, ptr, check_zero);
 }
 
-PYBIND11_MODULE(ParticleGrid, m) {
+PYBIND11_MODULE(GridGenerator, m) {
     m.doc() = "Generate grids from point clouds";
     m.def("coord_to_grid", &coord_to_grid,
           "Convert a single 4-D point-cloud to grid",
