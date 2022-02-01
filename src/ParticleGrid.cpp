@@ -48,17 +48,21 @@ NPCarray ERFGridGenerator(NPCarray<float> atoms,
 
 PYBIND11_MODULE(GridGenerator, m){
   m.doc() = "Generate grids from molecular point clouds";
-  m.def("ERFGridGenerator", py::overload_cast<SINGLE_MOLECULE>(&ERFGridGenerator), "Generates ERF grid for a single molecule or batch of molecules");
-  m.def("ERFGridGenerator", py::overload_cast<BATCHED_MOLECULE>(&ERFGridGenerator), "Generates ERF grid for a single molecule or batch of molecules");
-}
-  
-  /* Commenting out but for future
+  m.def("ERFGridGenerator",
+        py::overload_cast<SINGLE_MOLECULE>(&ERFGridGenerator),
+        "Generates ERF grid for a single molecule or batch of molecules");
+  m.def("ERFGridGenerator",
+        py::overload_cast<BATCHED_MOLECULE>(&ERFGridGenerator),
+        "Generates ERF grid for a single molecule or batch of molecules");
   m.def("WeightedERFGridGenerator", 
         py::overload_cast<SINGLE_MOLECULE>(&WeightedERFGridGenerator), 
         "Generates weighted ERF grid for a single or batch molecule");
   m.def("WeightedERFGridGenerator",
         py::overload_cast<BATCHED_MOLECULE>(&WeightedERFGridGenerator), 
         "Generates weighted ERF grid for a single or batch molecule");
+}
+  
+  /* Commenting out but for future
 
   m.def("PeriodicERFGridGenerator",
         py::overload_cast<SINGLE_MOLECULE>(&PeriodicERFGridGenerator),
