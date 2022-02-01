@@ -74,9 +74,9 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
     #endif
 
     // multiply the erf values together to get the final volume integration
-    #ifdef OMP_ON
-    #pragma omp parallel for
-    #endif
+    // #ifdef OMP_ON
+    // #pragma omp parallel for
+    // #endif
     for(size_t k = atom_spans[2][0]; k <= atom_spans[2][1]; k++){
         float z_erf = erfz[k] * oc;
         float* koff = tens_offset + k*grid_strides[2];
@@ -88,16 +88,7 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
                 #ifdef GAUSS_V8F
                 v8sf erfxv = _mm256_load_ps(erfx+i);
                 v8sf tmp = _mm256_loadu_ps(idx);
-                v8sf to_add = erfxv * yz_erf;
-                tmp = tmp + to_add;
-                #if 0
-                for(int offset = 0; offset < 8; offset++){
-                    // float tmps = to_add[offset];
-                    // if(tmps < -0.05 || tmps > 1000){
-                    // printf("??? %p %f %ld %d %d %d: %f %f %f\n", &tensor[idx], tmps, idx, i, j, k, z_erf, yz_erf, erfxv[offset]);
-                    // }
-                }
-                #endif
+                tmp = tmp + erfxv * yz_erf;
                 _mm256_storeu_ps(idx, tmp);
                 #else
                 float v = erfx[i]*yz_erf;
