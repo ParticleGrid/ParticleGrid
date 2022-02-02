@@ -12,6 +12,7 @@ using NPCarray = py::array_t<T, py::array::c_style | py::array::forcecast>;
 template <bool batched, typename T> struct Container {std::vector<T> value; };
 template<typename T> struct Container<false, T>{  T value; }; //Partial specialization 
 
+
 template <typename T> 
 class Atom {
   public:
@@ -26,30 +27,40 @@ class Atom {
     T m_x, m_y, m_z;
 };
 
+template <typename T>
+class Weighted_Atom : Atom{
+  public:
+    Weighted_Atom() = default;
+    Weighted_Atom(size_t channel, T x, T y, T z, T w):Atom(channel, x, y, z){
+      m_w = w;
+    }
+    Weighted_Atom(const Weighted_Atom& other) = default;
+    Weighted_Atom& operator=(const Weighted_Atom& other) = default;
+    ~Weighted_Atom() = default;
 
-template <typename T> 
+  private:   
+    T m_w; 
+};
+
+template <bool weights, typename T> struct AtomType {Weighted_Atom<T> atom;};
+template <false, typename T> struct AtomType { Atom<T> atom;};
+
+
+template <typename T, bool weights> 
 class Molecule{
   public:
     size_t m_num_atoms;
-    Atom<T> m_atoms[];  
+    AtomType<weights, T> m_atoms[];  
   public:
     T get_volume(){ return m_height*m_depth*m_depth;}
-    Atom<T>& operator[](const unsigned int i){
-      // Maybe do some bounds checking? 
-      return m_atoms[i];
-    }
-    const Atom<T>& operator[](const unsigned int i) const{
-      // Maybe really do some bounds checking
-      return m_atoms[i];
-    }
 };
 
 enum Device {CPU, GPU};
 
-template <typename DataType, bool batched, Device device>
+template <typename DataType, bool batched, bool weights, Device device>
 class GridGeneratorBase {
   public: 
-    std::vector<Molecule<DataType>> m_molecules;
+    std::vector<Molecule<DataType, weights>> m_molecules;
     Container<batched, DataType> variances;
     Container<batched, DataType> heights;
     Container<batched, DataType> widths;
@@ -87,7 +98,7 @@ class GridGeneratorBase {
  // Implementation
  // -------------------------------------------
 
-template <typename DataType, true, Device device>
+template <typename DataType, true, bool weighted, Device device>
 void
 GridGeneratorBase::set_grid_params(py::list molecules, 
                                   NPCarray<DataType> variances,
@@ -96,7 +107,7 @@ m_num_molecules = molecules.size();
 
 }
 
-template <typename DataType, false, Device device>
+template <typename DataType, false, bool weighted, Device device>
 void
 GridGeneratorBase::set_grid_params(NPCarray<DataType> atoms, 
                                    NPCarray<DataType> variances,
@@ -106,7 +117,7 @@ GridGeneratorBase::set_grid_params(NPCarray<DataType> atoms,
 }
 
 
-template <typename DataType, bool batched, Device device>
+template <typename DataType, bool batched, bool weighted, Device device>
 NPCarray<DataType> 
 GridGeneratorBase::get_grid(){
 
@@ -117,7 +128,7 @@ GridGeneratorBase::get_grid(){
                                                  m_grid_size} : {(ssize_t) m_num_channels,
                                                  m_grid_size,
                                                  m_grid_size,
-                                                 m_grid_size}
+                                                 m_grid_size}; 
   
   auto size = m_num_molecules * m_num_channels * m_grid_size * m_grid_size * m_grid_size; 
   NPCarray<DataType> return_grid = NPCarray<DataType>(grid_shape);
