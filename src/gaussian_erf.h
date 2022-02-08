@@ -20,7 +20,7 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
     float* ic = atom_spec->erf_inner_c;
     float oc = atom_spec->erf_outer_c;
     size_t atom_spans[3][2];
-    // printf("%d %d %d %d\n", grid_shape[0], grid_shape[1], grid_shape[2], grid_shape[3]);
+    printf("%ld %ld %ld %ld\n", grid_strides[0], grid_strides[1], grid_strides[2], grid_strides[3]);
     alignas (32) float erfx[grid_shape[0]+8];
     alignas (32) float erfy[grid_shape[1]+8];
     alignas (32) float erfz[grid_shape[2]+8];
@@ -73,6 +73,15 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
         atom_spans[0][1] += 8;
     #endif
 
+    // for(int dim = 0; dim < 3; dim++){
+        // for(int i = 0; i < grid_shape[dim]; i++){
+            // float e = erfs[dim][i];
+            // if(e < -0.00001 || e > 100){
+                // printf("ERF %d %d: %f\n", dim, i, e);
+            // }
+        // }
+    // }
+
     // multiply the erf values together to get the final volume integration
     // #ifdef OMP_ON
     // #pragma omp parallel for
@@ -84,15 +93,24 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
             float yz_erf = erfy[j] * z_erf;
             float* kjoff = koff + j*grid_strides[1];
             for(size_t i = atom_spans[0][0]; i < atom_spans[0][1]; i+=VSIZE){
-                float* idx = kjoff + i*grid_strides[0];
-                if(idx > tens_offset + grid_strides[3]){
-                    printf("OUT\n");
-                }
+                float* idx = kjoff + i; // TODO grid_strides[0] ? doesn't work with simd
                 #ifdef GAUSS_V8F
-                v8sf erfxv = _mm256_load_ps(erfx+i);
-                v8sf tmp = _mm256_loadu_ps(idx);
-                tmp = tmp + erfxv * yz_erf;
-                _mm256_storeu_ps(idx, tmp);
+                // if(idx+8 >= tens_offset + grid_strides[3]){
+                    // for(size_t i2 = i; i2 < atom_spans[0][1]; i2++, idx++){
+                        // *idx += erfx[i2]*yz_erf;
+                    // }
+                // }
+                // else{
+                    v8sf erfxv = _mm256_load_ps(erfx+i);
+                    v8sf tmp = _mm256_loadu_ps(idx);
+                    tmp = tmp + erfxv * yz_erf;
+                    _mm256_storeu_ps(idx, tmp);
+                // }
+                // for(int i2 = 0; i2 < 8; i2++){
+                    // if(idx[i2] > 1000 || idx[i2] < -0.00001){
+                        // printf("%ld %ld %ld %ld: %f\n", i2, i, j, k, idx[i2]);
+                    // }
+                // }
                 #else
                 float v = erfx[i]*yz_erf;
                 *idx += v;

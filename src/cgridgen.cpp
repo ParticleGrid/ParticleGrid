@@ -47,6 +47,8 @@ void add_to_grid_c(const ssize_t num_points, const float* points,
      * with optional user-specified extents
      */
 
+    // printf("%p\n", tensor);
+
     Options options;
     if(ptr_options){
         options = *ptr_options;
@@ -85,27 +87,12 @@ py::array_t<float> create_point_grid_c(const npcarray& points,
     size_t num_points = points.shape(0);
     const float* ptr_points = (float*)points.request().ptr;
     std::vector<ssize_t> grid_shape = {(ssize_t)num_channels, D, H, W};
-    std::vector<ssize_t> grid_strides = strides_for(grid_shape);
-    float* tmp = nullptr;
-    if(grid_strides[0] != strides_for(grid_shape, 1)[0]){
-        printf("DOING A COPY\n");
-        tmp = (float*)calloc(num_channels, grid_strides[0]);
-        add_to_grid_c(num_points, ptr_points, grid_shape, grid_strides, tmp, extent, variance, options);
-    }
-    // npcarray grid = py::array_t<float>(grid_shape);
-    npcarray grid = py::array_t<float>(py::buffer_info(
-        tmp, // data (copied from here if not null)
-        sizeof(float), // item size
-        py::format_descriptor<float>::format(),
-        grid_shape.size(), // number of dimensions
-        grid_shape,
-        grid_strides
-    ));
-    if(!tmp){
-        float* ptr_tensor = (float*)grid.request().ptr;
-        memset(ptr_tensor, 0, num_channels * grid_strides[0]);
-        add_to_grid_c(num_points, ptr_points, grid_shape, grid_strides, ptr_tensor, extent, variance, options);
-    }
+    std::vector<ssize_t> grid_strides = strides_for(grid_shape, 1);
+    npcarray grid = py::array_t<float>( grid_shape );
+    float* ptr_tensor = (float*)grid.request().ptr;
+    memset(ptr_tensor, 0, grid.size()*sizeof(float));
+    // printf("%ld\n", grid.size());
+    add_to_grid_c(num_points, ptr_points, grid_shape, grid_strides, ptr_tensor, extent, variance, options);
     return grid;
 }
 

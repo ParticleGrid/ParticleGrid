@@ -26,7 +26,7 @@ def benchmark(sizes, variance=0.1):
     print("Loading structure data ...")
     with open(_data_file, 'rb') as f:
         _data_loaded = pickle.load(f)
-        mol_data = _data_loaded
+        mol_data = _data_loaded[:1]
             
     print("Finished loading data. ")
     print("Number of molecules: {}".format(len(mol_data)))
@@ -61,6 +61,6 @@ def benchmark(sizes, variance=0.1):
 
 # benchmark([16, 16, 20, 32, 48, 64, 128, 192])
 # benchmark([16, 32, 48, 64, 128, 192])
-benchmark([16, 17, 20, 23, 32, 48, 64, 128, 192])
+# benchmark([16, 17, 20, 23, 32, 48, 64, 128, 192])
 # benchmark([16, 20, 32, 48, 64, 128])
-# benchmark([16])
+benchmark([23])

@@ -61,6 +61,10 @@ static inline void erf_helper_v8f(float* erf_i, v8sf delta, int bound, float ic,
         v8sf res = erfv2-erfv;
         _mm256_store_ps(erf_i+i, res);
     }
+    
+    for(int i = bound; i < bound + 8; i++) {
+        erf_i[i] = 0;
+    }
 }
 #endif
 
@@ -137,10 +141,6 @@ void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3]
 
 void fill_output_spec(OutputSpec* ospec, float variance, size_t W, size_t H, size_t D, size_t N, const float* extent, const Options& options) {
     size_t x_stride = W;
-    #ifdef V8F
-    size_t miss = W%8;
-    if(miss) x_stride += (8-miss);
-    #endif
     size_t A = 1;
     size_t B = A*x_stride;
     size_t C = B*H;
