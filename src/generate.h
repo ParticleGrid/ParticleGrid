@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string.h>
+#include <assert.h>
 
 #include "perfdef.h"
 #include "avx_erf.hpp"
@@ -139,24 +140,51 @@ void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3]
     }
 }
 
-void fill_output_spec(OutputSpec* ospec, float variance, size_t W, size_t H, size_t D, size_t N, const float* extent, const Options& options) {
-    size_t x_stride = W;
-    size_t A = 1;
-    size_t B = A*x_stride;
-    size_t C = B*H;
+void fill_output_spec(OutputSpec* ospec, 
+        ssize_t num_points, const float* points, 
+        ssize_t num_dim, const ssize_t* shape, const ssize_t* strides, 
+        float variance, 
+        const float* extent, 
+        const Options* ptr_options) {
+    Options options;
+    if(ptr_options){
+        options = *ptr_options;
+    }
+
+    assert(num_dim == 4); // N, D, H, W
     *ospec = {
         .ext = {},
         .erf_inner_c = {},
         .erf_outer_c = 0.125,
-        .shape = {W, H, D, N},
-        .strides = {A, B, C, C*D}, 
+        .shape = {},
+        .strides = {}, 
         .collapse_channel = options.collapse_channel,
         .channel_weights = options.channel_weights
     };
-    memcpy((float*)&ospec->ext[0], extent, 6*sizeof(float));
+    if(extent) {
+        memcpy((float*)&ospec->ext[0], extent, 6*sizeof(float));
+    }
+    else{
+        get_grid_extent(num_points, points, ospec->ext);
+    }
+    memcpy(&ospec->shape[0], shape, 4*sizeof(ospec->shape[0]));
+    if(strides){
+        for(int i = 0; i < 4; i++){
+            assert(strides[i] % sizeof(float) == 0);
+            ospec->strides[i] = strides[i]/sizeof(float);
+        }
+    }
+    else{
+        ospec->strides[3] = 1;
+        for(int i = 2; i >= 0; i--){
+            ospec->strides[i] = ospec->strides[i+1] * shape[i+1];
+        }
+    }
+    // printf("B %ld %ld %ld %ld\n", ospec->strides[0], ospec->strides[1], ospec->strides[2], ospec->strides[3]);
+    // printf("C %ld %ld %ld %ld\n", ospec->shape[0], ospec->shape[1], ospec->shape[2], ospec->shape[3]);
     for(int i = 0; i < 3; i++){
-        // float span = ospec->ext[1][i] - ospec->ext[0][i];
-        float ic = (float)(512/(SQRT_2*ospec->shape[i]));
+        float span = ospec->ext[1][i] - ospec->ext[0][i];
+        float ic = (float)(512/(SQRT_2*ospec->shape[3-i]));
         if(options.dynamic_variance){
             ic = ic / variance;
         }

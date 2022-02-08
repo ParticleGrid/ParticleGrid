@@ -21,6 +21,7 @@ $(PACKAGE): $(SOURCE)
 
 bench: generate_bench.cpp
 	$(CXX) $^ -o $@ $(CFLAGS)
+.PHONY: bench
 
 clean:
 	rm *.o *.so

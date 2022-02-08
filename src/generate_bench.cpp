@@ -24,16 +24,27 @@ int main(){
         mols[i] = (float*)malloc(sizes[i]*4*sizeof(float));
         fread(mols[i], sizeof(float), sizes[i]*4, f);
     }
+    fclose(f);
     int N = 8;
     for(int j = 0; j < ITER; j++){
         for(int i = 0; i < n_mols; i++){
             float* points = mols[i];
             OutputSpec o;
-            float ext[2][3];
-            get_grid_extent(sizes[i], points, ext);
-            fill_output_spec(&o, variance, SHAPE, SHAPE, SHAPE, N, (float*)ext);
+            ssize_t shape[] = {8, SHAPE, SHAPE, SHAPE};
+            fill_output_spec(&o, 
+                    sizes[i], points,
+                    4, shape, nullptr,
+                    variance,
+                    nullptr,
+                    nullptr);
             gaussian_erf(sizes[i], points, &o, tensor+i*N*SHAPE*SHAPE*SHAPE);
         }
     }
+    for(int i = 0; i < n_mols; i++){
+        free(mols[i]);
+    }
+    free(sizes);
+    free(mols);
     display_tensor_xy(SHAPE, SHAPE, SHAPE, tensor, 4);
+    free(tensor);
 }
