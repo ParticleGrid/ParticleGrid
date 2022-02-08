@@ -12,7 +12,6 @@
 #define GAUSS_ATOM_FN EVALUATOR(gaussian_erf, _GAUSS_SUFFIX)
 
 static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
-    // printf("%d %d %d %d %d\n", WW, HH, DD, o->N, channel);
     size_t* grid_shape = atom_spec->grid_shape;
     size_t* grid_strides = atom_spec->grid_strides;
     float* tens_offset = atom_spec->tensor;
@@ -21,6 +20,7 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
     float* ic = atom_spec->erf_inner_c;
     float oc = atom_spec->erf_outer_c;
     size_t atom_spans[3][2];
+    // printf("%d %d %d %d\n", grid_shape[0], grid_shape[1], grid_shape[2], grid_shape[3]);
     alignas (32) float erfx[grid_shape[0]+8];
     alignas (32) float erfy[grid_shape[1]+8];
     alignas (32) float erfz[grid_shape[2]+8];
@@ -78,13 +78,16 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
     // #pragma omp parallel for
     // #endif
     for(size_t k = atom_spans[2][0]; k <= atom_spans[2][1]; k++){
-        float z_erf = erfz[k] * oc;
+        float z_erf = erfz[k] * oc * atom_spec->weight;
         float* koff = tens_offset + k*grid_strides[2];
         for(size_t j = atom_spans[1][0]; j <= atom_spans[1][1]; j++){
             float yz_erf = erfy[j] * z_erf;
             float* kjoff = koff + j*grid_strides[1];
             for(size_t i = atom_spans[0][0]; i < atom_spans[0][1]; i+=VSIZE){
                 float* idx = kjoff + i*grid_strides[0];
+                if(idx > tens_offset + grid_strides[3]){
+                    printf("OUT\n");
+                }
                 #ifdef GAUSS_V8F
                 v8sf erfxv = _mm256_load_ps(erfx+i);
                 v8sf tmp = _mm256_loadu_ps(idx);
@@ -126,7 +129,16 @@ static inline void GAUSS_FN(size_t n_atoms, const float* points, OutputSpec* o, 
         for(int i = 0; i < 3; i++){
             atom_spec.point[i] = points[(idx + 1) + i] - o->ext[0][i];
         }
-        atom_spec.tensor = tensor + atom_spec.grid_strides[3]*atom_spec.channel;
+        atom_spec.tensor = tensor;
+        if(!o->collapse_channel) {
+            atom_spec.tensor += atom_spec.grid_strides[3]*atom_spec.channel;
+        }
+        if(o->channel_weights) {
+            atom_spec.weight = o->channel_weights[atom_spec.channel];
+        }
+        else {
+            atom_spec.weight = 1;
+        }
         GAUSS_ATOM_FN(&atom_spec);
     }
 }

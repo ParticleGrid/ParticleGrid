@@ -18,7 +18,7 @@ _cur_dir = osp.dirname(osp.realpath(__file__))
 
 _data_dir = osp.join(_cur_dir)
 
-def benchmark(sizes, variance=0.6):
+def benchmark(sizes, variance=0.1):
 
     _data_file = osp.join(_data_dir,'100_molecules.pickle')
     
@@ -41,7 +41,8 @@ def benchmark(sizes, variance=0.6):
     for size in sizes:
         print("Doing c-based generation for {}^3, {} molecules...".format(size, len(mol_data)))
         a = time.time_ns()
-        ctensors.append(gg.generate_grid(mol_data, size, size, size, 8, variance*16/size))
+        for m in mol_data:
+            ctensors.append(gg.molecule_grid(m, size, 8, variance*16))
         b = time.time_ns()
         diff = (b-a)/(10**9)
         print(diff, "s = ", len(mol_data)/diff, "molecules/s")
@@ -59,6 +60,7 @@ def benchmark(sizes, variance=0.6):
     
 
 # benchmark([16, 16, 20, 32, 48, 64, 128, 192])
-benchmark([16, 16, 20, 32, 48, 64, 128, 192])
+# benchmark([16, 32, 48, 64, 128, 192])
+benchmark([16, 17, 20, 23, 32, 48, 64, 128, 192])
 # benchmark([16, 20, 32, 48, 64, 128])
-# benchmark([20])
+# benchmark([16])

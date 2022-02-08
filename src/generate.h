@@ -8,12 +8,20 @@
 #define SQRT_2 1.41421356237
 #define INTEGRAL_NORMALIZATION_3D 0.125
 
+struct Options {
+    bool dynamic_variance = true;
+    bool collapse_channel = false;
+    const float* channel_weights = nullptr;
+};
+
 typedef struct OutputSpec {
     float ext[2][3];
     float erf_inner_c[3];
     float erf_outer_c;
     size_t shape[4];
     size_t strides[4];
+    bool collapse_channel;
+    const float* channel_weights;
 } OutputSpec;
 
 struct atom_spec_t {
@@ -21,6 +29,7 @@ struct atom_spec_t {
     size_t grid_strides[4];
     float point[3];
     int channel;
+    float weight;
     // dimensions for full grid, in arbitrary units
     float grid_dim[3];
     // dimensions for individual grid cells
@@ -103,7 +112,7 @@ static inline bool erf_range_helper(size_t range[2], int center, int grid_shape,
 #include "gaussian_erf.h"
 
 // data setup helpers
-void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
+void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3]){
     /**
      * creates an extent which is slightly larger than the bounding box of all provided points
      */
@@ -126,7 +135,7 @@ void get_grid_extent(size_t n_atoms, float* points, float ret_extent[2][3]){
     }
 }
 
-void fill_output_spec(OutputSpec* ospec, float variance, size_t W, size_t H, size_t D, size_t N, float* extent) {
+void fill_output_spec(OutputSpec* ospec, float variance, size_t W, size_t H, size_t D, size_t N, const float* extent, const Options& options) {
     size_t x_stride = W;
     #ifdef V8F
     size_t miss = W%8;
@@ -141,15 +150,16 @@ void fill_output_spec(OutputSpec* ospec, float variance, size_t W, size_t H, siz
         .erf_outer_c = 0.125,
         .shape = {W, H, D, N},
         .strides = {A, B, C, C*D}, 
+        .collapse_channel = options.collapse_channel,
+        .channel_weights = options.channel_weights
     };
-    memcpy((float*)&ospec->ext, extent, 6*sizeof(float));
+    memcpy((float*)&ospec->ext[0], extent, 6*sizeof(float));
     for(int i = 0; i < 3; i++){
-        float span = ospec->ext[1][i] - ospec->ext[0][i];
-        float ic = (float)(64/(SQRT_2*variance*ospec->shape[i]));
+        // float span = ospec->ext[1][i] - ospec->ext[0][i];
+        float ic = (float)(512/(SQRT_2*ospec->shape[i]));
+        if(options.dynamic_variance){
+            ic = ic / variance;
+        }
         ospec->erf_inner_c[i] = ic;
-        // if(i == 0){
-            // ospec->erf_inner_c[i] *= 10;
-        // }
-        // printf("inner %d %f %f\n", i, ic, span);
     }
 }
