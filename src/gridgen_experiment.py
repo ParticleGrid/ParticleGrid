@@ -41,13 +41,14 @@ def benchmark(sizes, variance=0.1):
     for size in sizes:
         print("Doing c-based generation for {}^3, {} molecules...".format(size, len(mol_data)))
         a = time.time_ns()
-        for m in mol_data:
-            ctensors.append(gg.molecule_grid(m, size, 8, variance*16))
+        ctensors.append(gg.list_grid(mol_data, size, 8, variance*16))
+        # for m in mol_data:
+            # ctensors.append(gg.molecule_grid(m, size, 8, variance*16))
         b = time.time_ns()
         diff = (b-a)/(10**9)
         print(diff, "s = ", len(mol_data)/diff, "molecules/s")
         ctimes.append(diff)
-        gg.display_tensor(ctensors[-1], 1)
+        gg.display_tensor(ctensors[-1][0], 1)
         # for mol in mol_data[:1]:
             # print("# atoms:", len(mol))
         print()
@@ -62,5 +63,5 @@ def benchmark(sizes, variance=0.1):
 benchmark([16, 17, 20, 23, 32, 48, 64, 128, 192])
 # benchmark([16, 16, 20, 32, 48, 64, 128, 192])
 # benchmark([16, 32, 48, 64, 128, 192])
-# benchmark([16, 20, 32, 48, 64, 128])
-# benchmark([16])
+# benchmark([16, 20, 32])
+# benchmark([32])

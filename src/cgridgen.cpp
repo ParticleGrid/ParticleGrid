@@ -64,12 +64,32 @@ void onto_grid(npcarray& tensor, npcarray& points, const int grid_size, const in
 
 py::array_t<float> molecule_grid(npcarray points, const int grid_size, const int num_channels,
             float variance) {
-    /*float ext[2][3] = {
-        {0, 0, 0},
-        {width, height, depth},
-    };*/
     return create_point_grid_c(points, grid_size, grid_size, grid_size, num_channels, nullptr, variance, nullptr);
 }
+
+py::array_t<float> list_grid(py::list molecules, const int grid_size, const int num_channels, float variance) {
+    size_t M = molecules.size();
+    std::vector<ssize_t> grid_shape = {(ssize_t)M, (ssize_t)num_channels, grid_size, grid_size, grid_size};
+    npcarray grid = py::array_t<float>( grid_shape );
+    size_t i = 0;
+    float* tensor = (float*)grid.request().ptr;
+    ssize_t stride = grid.strides(0)/sizeof(float);
+    for(py::handle m : molecules){
+        npcarray points = py::cast<npcarray>(m);
+        add_to_grid_c(tensor+i*stride, 
+            points.size()/4,
+            (float*)points.request().ptr,
+            grid_shape.size()-1,
+            grid.shape()+1,
+            grid.strides()+1,
+            nullptr,
+            variance,
+            nullptr);
+        i++;
+    }
+    return grid;
+}
+
 void display_tensor_py(npcarray tensor, int show_max = 10){
     /* displays a tensor in ascii for debugging */
     int W = tensor.shape(3);
@@ -93,6 +113,10 @@ PYBIND11_MODULE(GridGenerator, m) {
     m.def("molecule_grid", &molecule_grid,
           "Convert a single 4-D point-cloud to grid",
           py::arg("points"), py::arg("grid_size"), py::arg("num_channels"),
+          py::arg("variance") = 0.04);
+    m.def("list_grid", &list_grid,
+          "Convert a single 4-D point-cloud to grid",
+          py::arg("molecules"), py::arg("grid_size"), py::arg("num_channels"),
           py::arg("variance") = 0.04);
     m.def("display_tensor", &display_tensor_py, 
             "Display the tensor in an ascii graph depiction", 

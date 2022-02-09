@@ -9,7 +9,20 @@
 #define _GAUSS_SUFFIX EVALUATOR(_, GAUSS_SUFFIX)
 #endif
 #define GAUSS_FN EVALUATOR(gaussian_erf, _GAUSS_SUFFIX)
-#define GAUSS_ATOM_FN EVALUATOR(gaussian_erf, _GAUSS_SUFFIX)
+#define GAUSS_ATOM_FN EVALUATOR(gaussian_erf_atom, _GAUSS_SUFFIX)
+#define BINARY_ATOM_FN EVALUATOR(binary_atom, _GAUSS_SUFFIX)
+
+static inline void BINARY_ATOM_FN(atom_spec_t* atom_spec){
+    int center[3] = {0};
+    size_t* strides = atom_spec->grid_strides;
+    for(int dim = 0; dim < 3; dim++) {
+        center[dim] = (int)( (atom_spec->point[dim])/atom_spec->cell_dim[dim] );
+        if(center[dim] < 0 || center[dim] >= atom_spec->grid_shape[3-dim]){
+            return;
+        }
+    }
+    atom_spec->tensor[strides[1]*center[3]+strides[2]*center[2]+strides[3]*center[1]] += 1;
+}
 
 static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
     size_t* grid_shape = atom_spec->grid_shape;
@@ -95,16 +108,19 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
                     // printf("BBB %ld\n", idx+8-tens_offset);
                 }
                 else{
+                    // printf("CCC %ld %ld %ld %ld\n", i, j, k, idx-tens_offset);
                     v8sf erfxv = _mm256_load_ps(erfx+i);
                     v8sf tmp = _mm256_loadu_ps(idx);
                     tmp = tmp + erfxv * yz_erf;
                     _mm256_storeu_ps(idx, tmp);
                 }
+                #if 0
                 for(int i2 = 0; i2 < 8 && idx + i2 < tens_offset + grid_strides[0]; i2++){
                     if(idx[i2] > 1000 || idx[i2] < -0.00001){
-                        // printf("BAD %ld %ld %ld %ld: %f\n", i2, i, j, k, idx[i2]);
+                        printf("BAD %ld %ld %ld %ld: %f\n", i2, i, j, k, idx[i2]);
                     }
                 }
+                #endif
                 // printf("BBB %ld\n", idx-tens_offset);
                 #else
                 float v = erfx[i]*yz_erf;
@@ -144,6 +160,7 @@ static inline void GAUSS_FN(size_t n_atoms, const float* points, OutputSpec* o, 
         }
         atom_spec.tensor = tensor;
         if(!o->collapse_channel) {
+            // printf("add %lu %lu %lu\n", atom_spec.grid_strides[0]*atom_spec.channel, atom_spec.grid_strides[0], atom_spec.channel);
             atom_spec.tensor += atom_spec.grid_strides[0]*atom_spec.channel;
         }
         if(o->channel_weights) {

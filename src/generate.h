@@ -66,6 +66,11 @@ static inline void erf_helper_v8f(float* erf_i, v8sf delta, int bound, float ic,
     for(int i = bound; i < bound + 8; i++) {
         erf_i[i] = 0;
     }
+    // printf("BOUND %d\n", bound);
+    // for(int i = 0; i < bound; i++){
+        // printf("%.3e ", erf_i[i]);
+    // }
+    // printf("\n");
 }
 #endif
 
