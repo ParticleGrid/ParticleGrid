@@ -105,7 +105,7 @@ py::array_t<float> coord_to_grid(npcarray points,
                    const float width, const float height, const float depth,
                    const int grid_size, const int num_channels, float variance = 0.04){
     /* add a single point to a grid tensor */
-    float ext[] = {
+    float ext[2][3] = {
         {0, 0, 0},
         {width, height, depth}
     };
