@@ -101,6 +101,17 @@ py::array_t<float> generate_grid(py::list molecules, const int W, const int H, c
     return list_grid_shape(molecules, {D, H, W}, num_channels, variance);
 }
 
+py::array_t<float> coord_to_grid(npcarray points,
+                   const float width, const float height, const float depth,
+                   const int grid_size, const int num_channels, float variance = 0.04){
+    /* add a single point to a grid tensor */
+    float ext[] = {
+        {0, 0, 0},
+        {width, height, depth}
+    };
+    return create_point_grid_c(points, grid_size, grid_size, grid_size, num_channels, (float*)ext, variance, nullptr);
+}
+
 void display_tensor_py(npcarray tensor, int show_max = 10){
     /* displays a tensor in ascii for debugging */
     int W = tensor.shape(3);
@@ -132,6 +143,11 @@ PYBIND11_MODULE(GridGenerator, m) {
             "Generate a grid from a list of Nx4 numpy arrays", 
             py::arg("molecules"), py::arg("W") = 32, py::arg("H") = 32, py::arg("D") = 32, py::arg("N") = 1,
             py::arg("variance") = 0.04);
+    m.def("coord_to_grid", &coord_to_grid,
+          "Convert a single 4-D point-cloud to grid",
+          py::arg("points"),
+          py::arg("width"), py::arg("height"), py::arg("depth"),
+          py::arg("grid_size"), py::arg("num_channels"),py::arg("variance") = 0.04);
     m.def("display_tensor", &display_tensor_py, 
             "Display the tensor in an ascii graph depiction", 
             py::arg("tensor"), py::arg("count") = 10);
