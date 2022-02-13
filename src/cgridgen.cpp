@@ -70,9 +70,9 @@ py::array_t<float> molecule_grid(npcarray points, const int grid_size, const int
     return create_point_grid_c(points, grid_size, grid_size, grid_size, num_channels, nullptr, variance, nullptr);
 }
 
-py::array_t<float> list_grid(py::list molecules, const int grid_size, const int num_channels, float variance) {
+py::array_t<float> list_grid_shape(py::list molecules, const std::vector<ssize_t>& shape, const int num_channels, float variance) {
     size_t M = molecules.size();
-    std::vector<ssize_t> grid_shape = {(ssize_t)M, (ssize_t)num_channels, grid_size, grid_size, grid_size};
+    std::vector<ssize_t> grid_shape = {(ssize_t)M, (ssize_t)num_channels, shape[0], shape[1], shape[2]};
     npcarray grid = py::array_t<float>( grid_shape );
     size_t i = 0;
     float* tensor = (float*)grid.request().ptr;
@@ -91,6 +91,14 @@ py::array_t<float> list_grid(py::list molecules, const int grid_size, const int 
         i++;
     }
     return grid;
+}
+
+py::array_t<float> list_grid(py::list molecules, ssize_t grid_shape, const int num_channels, float variance) {
+    return list_grid_shape(molecules, {grid_shape, grid_shape, grid_shape}, num_channels, variance);
+}
+
+py::array_t<float> generate_grid(py::list molecules, const int W, const int H, const int D, const int num_channels, float variance) {
+    return list_grid_shape(molecules, {D, H, W}, num_channels, variance);
 }
 
 void display_tensor_py(npcarray tensor, int show_max = 10){
@@ -120,6 +128,10 @@ PYBIND11_MODULE(GridGenerator, m) {
           "Convert a single 4-D point-cloud to grid",
           py::arg("molecules"), py::arg("grid_size"), py::arg("num_channels"),
           py::arg("variance") = 0.04);
+    m.def("generate_grid", &generate_grid, 
+            "Generate a grid from a list of Nx4 numpy arrays", 
+            py::arg("molecules"), py::arg("W") = 32, py::arg("H") = 32, py::arg("D") = 32, py::arg("N") = 1,
+            py::arg("variance") = 0.04);
     m.def("display_tensor", &display_tensor_py, 
             "Display the tensor in an ascii graph depiction", 
             py::arg("tensor"), py::arg("count") = 10);
