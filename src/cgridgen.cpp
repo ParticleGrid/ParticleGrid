@@ -47,30 +47,21 @@ py::array_t<float> create_point_grid_c(const npcarray& points,
     size_t num_points = points.shape(0);
     const float* ptr_points = (float*)points.request().ptr;
     std::vector<ssize_t> grid_shape = {(ssize_t)num_channels, D, H, W};
-    // printf("CREATE\n");
     npcarray grid = py::array_t<float>( grid_shape );
     float* ptr_tensor = (float*)grid.request().ptr;
     memset(ptr_tensor, 0, grid.size()*sizeof(float));
-    // printf("DONE %ld\n", grid.size());
     add_to_grid_c(ptr_tensor, num_points, ptr_points, grid.ndim(), grid.shape(), grid.strides(), extent, variance, options);
     return grid;
 }
 
-/*
-void onto_grid(npcarray& tensor, npcarray& points, const int grid_size, const int num_channels,
-            float variance) {
-    std::vector<ssize_t> grid_shape = {(ssize_t)num_channels, grid_size, grid_size, grid_size};
-    std::vector<ssize_t> grid_strides = strides_for(grid_shape);
-    add_to_grid_c(points.shape(0), (float*)points.request().ptr, grid_shape, grid_strides, (float*)tensor.request().ptr, nullptr, variance, nullptr);
-}
-*/
-
 py::array_t<float> molecule_grid(npcarray points, const int grid_size, const int num_channels,
             float variance) {
+    /* convert a single molecule to a grid */
     return create_point_grid_c(points, grid_size, grid_size, grid_size, num_channels, nullptr, variance, nullptr);
 }
 
 py::array_t<float> list_grid_shape(py::list molecules, const std::vector<ssize_t>& shape, const int num_channels, float variance) {
+    /* convert a list of molecules to a grid */
     size_t M = molecules.size();
     std::vector<ssize_t> grid_shape = {(ssize_t)M, (ssize_t)num_channels, shape[0], shape[1], shape[2]};
     npcarray grid = py::array_t<float>( grid_shape );
@@ -94,17 +85,19 @@ py::array_t<float> list_grid_shape(py::list molecules, const std::vector<ssize_t
 }
 
 py::array_t<float> list_grid(py::list molecules, ssize_t grid_shape, const int num_channels, float variance) {
+    /* convert a list of molecules to a grid */
     return list_grid_shape(molecules, {grid_shape, grid_shape, grid_shape}, num_channels, variance);
 }
 
 py::array_t<float> generate_grid(py::list molecules, const int W, const int H, const int D, const int num_channels, float variance) {
+    /* convert a list of molecules to a grid */
     return list_grid_shape(molecules, {D, H, W}, num_channels, variance);
 }
 
 py::array_t<float> coord_to_grid(npcarray points,
                    const float width, const float height, const float depth,
                    const int grid_size, const int num_channels, float variance = 0.04){
-    /* add a single point to a grid tensor */
+    /* add a single molecule to a grid tensor, with extents specified */
     float ext[2][3] = {
         {0, 0, 0},
         {width, height, depth}
@@ -125,12 +118,6 @@ void display_tensor_py(npcarray tensor, int show_max = 10){
 
 PYBIND11_MODULE(GridGenerator, m) {
     m.doc() = "Generate grids from point clouds";
-    /*
-    m.def("onto_grid", &onto_grid,
-          "Convert a single 4-D point-cloud to grid",
-          py::arg("tensor"), py::arg("points"), py::arg("grid_size"), py::arg("num_channels"),
-          py::arg("variance") = 0.04);
-     */
     m.def("molecule_grid", &molecule_grid,
           "Convert a single 4-D point-cloud to grid",
           py::arg("points"), py::arg("grid_size"), py::arg("num_channels"),
