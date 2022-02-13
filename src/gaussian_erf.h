@@ -13,11 +13,11 @@
 #define BINARY_ATOM_FN EVALUATOR(binary_atom, _GAUSS_SUFFIX)
 
 static inline void BINARY_ATOM_FN(atom_spec_t* atom_spec){
-    int center[3] = {0};
+    ssize_t center[3] = {0, 0, 0};
     size_t* strides = atom_spec->grid_strides;
     for(int dim = 0; dim < 3; dim++) {
-        center[dim] = (int)( (atom_spec->point[dim])/atom_spec->cell_dim[dim] );
-        if(center[dim] < 0 || center[dim] >= atom_spec->grid_shape[3-dim]){
+        center[dim] = (ssize_t)( (atom_spec->point[dim])/atom_spec->cell_dim[dim] );
+        if(center[dim] < 0 || center[dim] >= (ssize_t)atom_spec->grid_shape[3-dim]){
             return;
         }
     }
@@ -89,7 +89,6 @@ static inline void GAUSS_ATOM_FN(atom_spec_t* atom_spec){
 
     // multiply the erf values together to get the final volume integration
     // #ifdef OMP_ON
-    // #pragma omp parallel for
     // #endif
     for(size_t k = atom_spans[2][0]; k <= atom_spans[2][1]; k++){
         float z_erf = erfz[k] * oc * atom_spec->weight;

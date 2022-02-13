@@ -188,7 +188,7 @@ void fill_output_spec(OutputSpec* ospec,
     // printf("B %ld %ld %ld %ld\n", ospec->strides[0], ospec->strides[1], ospec->strides[2], ospec->strides[3]);
     // printf("C %ld %ld %ld %ld\n", ospec->shape[0], ospec->shape[1], ospec->shape[2], ospec->shape[3]);
     for(int i = 0; i < 3; i++){
-        float span = ospec->ext[1][i] - ospec->ext[0][i];
+        // float span = ospec->ext[1][i] - ospec->ext[0][i];
         float ic = (float)(512/(SQRT_2*ospec->shape[3-i]));
         if(options.dynamic_variance){
             ic = ic / variance;

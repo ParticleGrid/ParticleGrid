@@ -95,7 +95,6 @@ void display_tensor_py(npcarray tensor, int show_max = 10){
     int W = tensor.shape(3);
     int H = tensor.shape(2);
     int D = tensor.shape(1);
-    int stride = W*H*D;
     float* ptr = (float*)tensor.request().ptr;
     ssize_t size = tensor.size();
     printf("Tensor %p Total size: %ld\n", ptr, size);
