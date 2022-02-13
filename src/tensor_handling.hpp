@@ -6,7 +6,7 @@
 #include <cstring>
 #include <algorithm>
 
-static const char* fill = " ------++++#####";
+static const char* fill = " ...------++++#####";
 
 inline void display_tensor(int W, int H, int D, float* tensor, int cols){
     float min_v = tensor[0];
