@@ -8,6 +8,9 @@
 #include "cgridgen.h"
 #include "generate.h"
 
+#define STRINGIFY(x) #x
+#define MACRO_STRINGIFY(x) STRINGIFY(x)
+
 namespace py = pybind11;
 
 typedef py::array_t<float, py::array::c_style | py::array::forcecast> npcarray;
