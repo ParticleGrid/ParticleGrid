@@ -11,6 +11,7 @@
 
 struct Options {
     bool dynamic_variance = true;
+    bool cubic_extent = false;
     bool collapse_channel = false;
     const float* channel_weights = nullptr;
 };
@@ -122,7 +123,7 @@ static inline bool erf_range_helper(size_t range[2], int center, int grid_shape,
 #include "gaussian_erf.h"
 
 // data setup helpers
-void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3]){
+void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3], float margin = 2.0, bool cubic_extent = false){
     /**
      * creates an extent which is slightly larger than the bounding box of all provided points
      */
@@ -138,10 +139,21 @@ void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3]
             if(v > ret_extent[1][j])
                 ret_extent[1][j] = v;
         }
-    }        
+    }
+    float max_span = 0;
     for(int j = 0; j < 3; j++){
-        ret_extent[0][j] -= 2;
-        ret_extent[1][j] += 2;
+        ret_extent[0][j] -= margin;
+        ret_extent[1][j] += margin;
+        float span = ret_extent[1][j] - ret_extent[0][j];
+        max_span = std::max(max_span, span);
+    }
+    if(cubic_extent) {
+        for(int j = 0; j < 3; j++){
+            float span = ret_extent[1][j] - ret_extent[0][j];
+            float span_margin = (max_span - span)/2;
+            ret_extent[0][j] -= span_margin;
+            ret_extent[1][j] += span_margin;
+        }
     }
 }
 
