@@ -20,7 +20,7 @@ _cur_dir = osp.dirname(osp.realpath(__file__))
 
 _data_dir = osp.join(_cur_dir)
 
-def benchmark(sizes, variance=0.07):
+def benchmark(sizes, variance=0.25):
 
     _data_file = osp.join(_data_dir,'100_molecules.pickle')
     
@@ -28,7 +28,7 @@ def benchmark(sizes, variance=0.07):
     print("Loading structure data ...")
     with open(_data_file, 'rb') as f:
         _data_loaded = pickle.load(f)
-        mol_data = _data_loaded[:1]
+        mol_data = _data_loaded[6:7]
             
     print("Finished loading data. ")
     print("Number of molecules: {}".format(len(mol_data)))
@@ -50,6 +50,7 @@ def benchmark(sizes, variance=0.07):
         diff = (b-a)/(10**9)
         print(diff, "s = ", len(mol_data)/diff, "molecules/s")
         ctimes.append(diff)
+        # fig = mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0, 0, 0))
         colormaps = ['Reds', 'Oranges', 'Greens', 'Blues', 'Purples', 'GnBu', 'YlGn', 'RdPu']
         for i in range(8):
             print(colormaps[i])
@@ -75,4 +76,4 @@ def benchmark(sizes, variance=0.07):
 # benchmark([16, 16, 20, 32, 48, 64, 128, 192])
 # benchmark([16, 32, 48, 64, 128, 192])
 # benchmark([16, 20, 32])
-benchmark([128])
+benchmark([64])

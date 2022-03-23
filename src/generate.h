@@ -123,7 +123,7 @@ static inline bool erf_range_helper(size_t range[2], int center, int grid_shape,
 #include "gaussian_erf.h"
 
 // data setup helpers
-void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3], float margin = 2.0, bool cubic_extent = false){
+void get_grid_extent(size_t n_atoms, const float* points, float ret_extent[2][3], float margin = 2.0, bool cubic_extent = true){
     /**
      * creates an extent which is slightly larger than the bounding box of all provided points
      */
