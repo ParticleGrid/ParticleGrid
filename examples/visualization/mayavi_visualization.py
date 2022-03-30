@@ -5,7 +5,6 @@ from mayavi import mlab
 import GridGenerator as gg
 
 def visualize(size, molecule, variance=0.25):
-    print("Finished loading data. ")
     print(f"Number of atoms: {len(molecule)}")
     print("Creating visualization...")
     tensor = gg.molecule_grid(molecule, size, 8, variance*16)

@@ -6,7 +6,6 @@ from matplotlib.colors import ListedColormap
 import GridGenerator as gg
 
 def visualize(size, molecule, variance=0.05):
-    print("Finished loading data. ")
     print(f"Number of atoms: {len(molecule)}")
     print("Creating visualization...")
     tensor = gg.molecule_grid(molecule, size, 8, variance*16)
