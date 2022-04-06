@@ -14,7 +14,7 @@ ifeq (,$(findstring -DOMP_OFF,$(CDEFS)))
     FOMP=-fopenmp
 endif
 
-CFLAGS = -g -O -ffunction-sections -ffast-math -mfma -Wall $(MAVX) $(FOMP) $(CDEFS) $(CEXTRAS)
+CFLAGS = -g -O -ffunction-sections -ffast-math -mfma -Wall $(MAVX) $(FOMP) $(CDEFS) $(CEXTRAS) --std=c++17
 
 $(PACKAGE): $(SOURCE)
 	$(CXX) -shared -std=c++11 -fPIC $$(python3 -m pybind11 --includes) $^ -o $@$$(python3-config --extension-suffix) $(CFLAGS)
