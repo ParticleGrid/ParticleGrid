@@ -22,4 +22,5 @@ Run the example using:
 
 ```
 python3 mayavi_visualization.py
-``` 
+```
+ 
