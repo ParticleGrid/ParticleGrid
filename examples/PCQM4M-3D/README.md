@@ -14,6 +14,16 @@ The files in this example included are:
 
 ## Instructions
 ---
+
+### Download the data 
+
+Download and decompress the data using: 
+```
+wget http://ogb-data.stanford.edu/data/lsc/pcqm4m-v2-train.sdf.tar.gz
+md5sum pcqm4m-v2-train.sdf.tar.gz # fd72bce606e7ddf36c2a832badeec6ab
+tar -xf pcqm4m-v2-train.sdf.tar.gz # extracted pcqm4m-v2-train.sdf
+```
+
 To run the example, run the notebook `predict_energies.ipynb`
 
 We suggest spinning up a virtual environment to install the required packages. 
