@@ -13,16 +13,26 @@ def diff(x, y):
 
 @vectorize([float32(float32)])
 def erf(x):
-  return special.erf(x)
+  t = 1 / (1 + (0.47047*x))
+  t2 = t**2
+  t3 = t**3
+  a1 = 0.3480242
+  a2 = -0.0958798
+  a3 = 0.7478556
+  val = (a1*t+a2*t2+a3*t3)*np.exp(-x**2)
+  if (x < 0):
+    return val-1
+  else:  
+    return 1-val
 
 @jit(nopython=True)
 def meshgrid(x, y, z):
     """ Taken from: 
         https://stackoverflow.com/questions/70613681/numba-compatible-numpy-meshgrid
     """
-    xx = np.empty(shape=(x.size, y.size, z.size), dtype=x.dtype)
-    yy = np.empty(shape=(x.size, y.size, z.size), dtype=y.dtype)
-    zz = np.empty(shape=(x.size, y.size, z.size), dtype=z.dtype)
+    xx = np.empty(shape=(x.size, y.size, z.size), dtype=np.float32)
+    yy = np.empty(shape=(x.size, y.size, z.size), dtype=np.float32)
+    zz = np.empty(shape=(x.size, y.size, z.size), dtype=np.float32)
     for i in range(z.size):
         for j in range(y.size):
             for k in range(x.size):
@@ -31,12 +41,13 @@ def meshgrid(x, y, z):
                 zz[i,j,k] = i  # change to z[i] if indexing xy
     return zz, yy, xx
 
-@jit()
+@jit(nopython=True)
 def cdist(grid_points, coords):
   ret = np.empty(shape=(grid_points.size, coords.size), dtype=np.float32)
   for i in range(grid_points.size):
     for j in range(coords.size):
-      ret[i][j] = diff(grid_points[i], coords[j])
+      val = grid_points[i] - coords[j]
+      ret[i][j] = val[0]
   return ret
 
 @jit([float32[:,:,:,:](float32[:,:,:,:], int64, int64)])
@@ -52,7 +63,7 @@ def swapaxes(a, axis1, axis2):
     pos = tuple_setitem(pos, axis2, tmp)
     return a.transpose(pos)
 
-@jit()
+@jit(nopython=True)
 def NUMBAGridGenerator(mol, grid_size, channels, variance):
   x_max = mol[:, 0].max()
   y_max = mol[:, 1].max()
@@ -113,13 +124,13 @@ def NUMBAGridGenerator(mol, grid_size, channels, variance):
 if __name__ == '__main__':
 
   times = []  
-  for i in tqdm(range(10)):
+  for i in tqdm(range(100)):
     coords = np.random.randn(20,3) * 10
     channels = np.random.randint(0, 8, size=(20,1))
     mol = np.hstack((channels, coords)).astype(np.float32)
-    print(mol.shape)
+
     timer_start = perf_counter()
     test = NUMBAGridGenerator(mol, 32, 8, 0.25)
     timer_end = perf_counter()
     times.append(timer_end-timer_start)
-  print(f"Average time (s): {mean(times)}  standard deviation {stdev(times)}")
+  print(f"Average time (s): {mean(times[1:])}  standard deviation {stdev(times[1:])}")
