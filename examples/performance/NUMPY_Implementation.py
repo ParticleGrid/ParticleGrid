@@ -1,13 +1,16 @@
+from statistics import mean, stdev
+from time import perf_counter
 import numpy as np
 from scipy.spatial import distance
 from scipy import special
+from tqdm import tqdm
 
 
 def NPGridGenerator(mol, grid_size, channels, variance):
   x_max, y_max, z_max = mol[:, 1:].max(axis=0)
-  x_coords = np.linspace(0., x_max, grid_size + 1)
-  y_coords = np.linspace(0., y_max, grid_size + 1)
-  z_coords = np.linspace(0., z_max, grid_size + 1)
+  x_coords = np.linspace(0., x_max, grid_size + 1, dtype=np.float32)
+  y_coords = np.linspace(0., y_max, grid_size + 1, dtype=np.float32)
+  z_coords = np.linspace(0., z_max, grid_size + 1, dtype=np.float32)
 
   x_a, y_a, z_a = np.meshgrid(x_coords, y_coords, z_coords, indexing='ij')
 
@@ -55,9 +58,14 @@ def NPGridGenerator(mol, grid_size, channels, variance):
 
 
 if __name__ == '__main__':
-  mol = np.array([[0, 0, 0, 0],
-                  [0, 1, .5, .6],
-                  [1, 2, 2, 2]])
-  test = NPGridGenerator(mol, 4, 8, 0.25)
+  times = []  
+  for i in tqdm(range(10)):
+    coords = np.random.randn(20,3) * 10
+    channels = np.random.randint(0, 8, size=(20,1))
+    mol = np.hstack((channels, coords))
 
-  print(test.shape)
+    timer_start = perf_counter()
+    test = NPGridGenerator(mol, 32, 8, 0.25)
+    timer_end = perf_counter()
+    times.append(timer_end-timer_start)
+  print(f"Average time (s): {mean(times)}  standard deviation {stdev(times)}")
