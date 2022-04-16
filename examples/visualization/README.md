@@ -7,4 +7,3 @@ The examples include the 3D visualization libraries:
 1. [Mayavi](mayavi/)
 2. [Matplotlib3](matplotlib/)
 3. [K3D-jupyter](k3d-jupyter/)
-4. 
