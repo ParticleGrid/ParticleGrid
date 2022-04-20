@@ -15,6 +15,7 @@ def main():
   GridGenTimes = {}
 
   mol_list = pickle.load(open("molecule_list.pickle", 'r'))
+
   for gridder, title in generators:
     for gsize in grid_sizes:
       for variance in variances:
