@@ -24,18 +24,15 @@ md5sum pcqm4m-v2-train.sdf.tar.gz # fd72bce606e7ddf36c2a832badeec6ab
 tar -xf pcqm4m-v2-train.sdf.tar.gz # extracted pcqm4m-v2-train.sdf
 ```
 
-To run the example, run the notebook `predict_energies.ipynb`
-
 We suggest spinning up a virtual environment to install the required packages. 
 
 ```
 source <env_name>/bin/activate
 pip install -r requirements.txt
-jupyter lab
 ```
 
-Once up and running, the notebook will be on: 
+To run the `Pytorch-Lightning` enabled trainer:
 
 ```
-http(s)://<server:port>/<lab-location>/lab/tree/predict_energies.ipynb
+python train.py
 ```
