@@ -23,13 +23,14 @@ class PCQM4M_Dataset(Dataset):
 
   def __getitem__(self, index):
     mol = self._data[index]
+    mol[:, 0] = 0
     mol_coords = mol[:, 1:] 
-    depth, height, width = mol_coords.max(axis=0) + 2
+    width, height, depth = mol_coords.max(axis=0) + 2
     _data = coord_to_grid(mol,
                           width=width,
                           height=height,
                           depth=depth,
-                          num_channels=7,
+                          num_channels=1,
                           grid_size=self.grid_size,
                           variance=self.variance)
     y = self._targets[index]

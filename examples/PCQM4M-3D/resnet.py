@@ -265,9 +265,9 @@ def resnet200(**kwargs):
 
 if __name__ == '__main__':
     small_model = resnet10(num_classes=1,
-                           sample_size=64,
-                           sample_duration=64,
+                           sample_size=32,
+                           sample_duration=32,
                            num_channels=7).cuda()
 
-    summary(small_model, (7, 64, 64, 64))
+    summary(small_model, (7, 32, 32, 32))
     
