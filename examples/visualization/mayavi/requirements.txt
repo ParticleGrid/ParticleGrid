@@ -18,7 +18,7 @@ multidict==6.0.2
 numpy==1.22.3
 packaging==21.3
 ParticleGrid==0.0.1
-Pillow==9.1.0
+Pillow==9.1.1
 pyface==7.4.1
 Pygments==2.11.2
 pyparsing==3.0.7
