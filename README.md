@@ -2,6 +2,10 @@
 
 [![build Actions Status](https://github.com/ParticleGrid/ParticleGrid/workflows/build/badge.svg)](https://github.com/ParticleGrid/ParticleGrid/actions)
 
+[![fair-software.eu](https://img.shields.io/badge/fair--softwa
+re.eu-%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8B%20%20%E2%97%8B%2
+0%20%E2%97%8B-red)](https://fair-software.eu)
+
 # Description
 
 ParticleGrid is a SIMD accelerated 3D grid generation library. 3D grids are generated from conformed molecular points and can be used with conventional 3D deep learning tools. 
