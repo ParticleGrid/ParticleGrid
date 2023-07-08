@@ -1,0 +1,8 @@
+[submodule "extern/pybind11"]
+	path = extern/pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = stable
+[submodule "extern/xsimd"]
+	path = extern/xsimd
+	url = https://github.com/xtensor-stack/xsimd.git
+	branch = master
