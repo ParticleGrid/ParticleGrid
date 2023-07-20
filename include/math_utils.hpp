@@ -5,11 +5,14 @@
 #include <cmath>
 
 template <typename T>
-void matmul(const T *input_matrix,
-            const std::array<T, 9> &transform,
-            T *output_matrix,
-            const size_t &m)
+inline void
+matmul(const T *input_matrix,
+       const std::array<T, 9> &transform,
+       T *output_matrix,
+       const size_t &m)
 {
+
+  // Make inline as it may be used in multiple source files
   constexpr size_t k = 3;
 
 #pragma omp parallel for
@@ -30,12 +33,36 @@ void matmul(const T *input_matrix,
 }
 
 template <typename T>
-std::array<T, 9> Frac2CarTransformMatrix(const T &a,
-                                         const T &b,
-                                         const T &c,
-                                         const T &alpha,
-                                         const T &beta,
-                                         const T &gamma)
+inline void matmul(const T *input_matrix,
+                   const T *transform,
+                   T *output_matrix,
+                   const size_t &m)
+{
+  constexpr size_t k = 3;
+#pragma omp parallel for
+  for (auto row = 0; row < m; ++row)
+  {
+    for (auto col = 0; col < k; ++col)
+    {
+      T &y_ij = output_matrix[row * k + col];
+
+      for (auto i = 0; i < 3; ++i)
+      {
+        const auto &x_ij = input_matrix[row * k + i];
+        const auto &w_ab = transform[i * k + col];
+        y_ij += x_ij * w_ab;
+      }
+    }
+  }
+}
+
+template <typename T>
+inline std::array<T, 9> Frac2CarTransformMatrix(const T &a,
+                                                const T &b,
+                                                const T &c,
+                                                const T &alpha,
+                                                const T &beta,
+                                                const T &gamma)
 {
   std::array<T, 9> _transform_matrix;
   /*
