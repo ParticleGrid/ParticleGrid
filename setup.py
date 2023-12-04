@@ -21,7 +21,7 @@ periodic_extension = Pybind11Extension("Periodic",
                                        ["src/periodic.cpp"],
                                        include_dirs=["include"],
                                        cxx_std=17,
-                                       extra_compile_args=["-mavx", "-fopenmp", "-Wall"],
+                                       extra_compile_args=["-mavx", "-fopenmp", "-Wall", "-O3"],
                                        extra_link_args=['-lgomp'],)
 
 ext_modules = [pybind_11_extension, discretizer_extension, periodic_extension]

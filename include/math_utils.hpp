@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <array>
+#include <vector>
 #include <iostream>
 #include <cmath>
 
@@ -53,6 +54,26 @@ inline void matmul(const T *input_matrix,
         y_ij += x_ij * w_ab;
       }
     }
+  }
+}
+
+template <typename T>
+inline void MeshGrid_Cartesian_3D(const int &grid_size,
+                                  T *output_matrix)
+{
+  // Linearized meshgrid in 3D space
+  const int num_meshgrid_points = 3 * grid_size * grid_size * grid_size;
+  std::vector<T> input_points(num_meshgrid_points);
+  const float delta = 1.0 / grid_size;
+  for (auto meshgrid_point = 0; meshgrid_point < num_meshgrid_points; ++meshgrid_point)
+  {
+    auto x_frac_coords = (meshgrid_point / (grid_size * grid_size));
+    auto y_frac_coords = (x_frac_coords * grid_size ) % grid_size;
+    auto z_frac_coords = meshgrid_point % grid_size;
+
+    input_points.push_back(float(x_frac_coords));
+    input_points.push_back(float(y_frac_coords));
+    input_points.push_back(float(z_frac_coords));
   }
 }
 

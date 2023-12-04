@@ -20,7 +20,7 @@ struct CrystalParams
   float m_gamma;
 
   std::vector<float> m_cart_coords;
-  std::vector<float> m_channels;
+  std::vector<int> m_channels;
   std::vector<int> m_elements;
   std::array<float, 9> m_transform_matrix;
   CrystalParams(const float &A,
@@ -37,7 +37,7 @@ struct CrystalParams
     add_expanded_coords(coords, elements);
   }
 
-  ~CrystalParams() { std::cout << "Calling destructor!" << std::endl; }
+  ~CrystalParams() = default;
 
   std::string
   toString() const
@@ -74,7 +74,7 @@ struct CrystalParams
       const int &elem = elem_data[coord];
 
       expanded_frac_coords.insert(expanded_frac_coords.end(), {x, y, z});
-      m_channels.push_back(c);
+      m_channels.push_back(int(c));
       m_elements.push_back(elem);
 
       for (const auto &x_translate : {x - 1, x, x + 1})
@@ -82,8 +82,13 @@ struct CrystalParams
         // Translate along the x-dimension
         for (const auto &y_translate : {y - 1, y, y + 1})
         {
+          // Translate along the y-dimension
           for (const auto &z_translate : {z - 1, z, z + 1})
           {
+            // Translate along the z-dimension
+
+            // To do: Add logic here so that only points close to the boundary 
+            // get added 
             expanded_frac_coords.insert(expanded_frac_coords.end(), {x_translate, y_translate, z_translate});
             m_channels.push_back(c);
             m_elements.push_back(elem);
@@ -101,6 +106,7 @@ struct CrystalParams
     m_cart_coords = std::move(expanded_cart_coords);
   }
   py::array_t<float> LJ_grid(const int& grid_size);
+  py::array_t<float> LJ_grid_blocked(const int& grid_size);
   py::array_t<float>  Metal_Organic_Grid(const int& grid_size, const float &variance);
 
 };
