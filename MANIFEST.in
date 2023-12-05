@@ -1,0 +1,4 @@
+graft include
+graft src
+
+global-exclude *~ *.mol *.so Makefile

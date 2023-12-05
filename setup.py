@@ -8,6 +8,7 @@ min_python_version = '.'.join(map(str, (3, 6, 2)))
 
 pybind_11_extension = Pybind11Extension("GridGenerator",
                                         ["src/cgridgen.cpp"],
+                                        include_dirs=["include"],
                                         cxx_std=17,
                                         extra_compile_args=["-mavx", "-fopenmp"],
                                         extra_link_args=['-lgomp'],
@@ -15,6 +16,7 @@ pybind_11_extension = Pybind11Extension("GridGenerator",
                                                        ('DEBUG_MODE', 1)])
 discretizer_extension = Pybind11Extension("Discretizer",
                                           ["src/discretizer.cpp"],
+                                          include_dirs=["include"],
                                           cxx_std=17)
 
 periodic_extension = Pybind11Extension("Periodic",
