@@ -2,15 +2,15 @@ import numpy as np
 
 
 def test_import():
-  from Periodic import CrystalParams
+    from Periodic import CrystalParams
 
 
 def test_crystal_param():
-  from Periodic import CrystalParams
+    from Periodic import CrystalParams
 
-  coords = np.array([[0, 0, 0, 0], [0, 0.5, 0.5, 0.5]])
-  elements = np.array([0, 0])
-  params = CrystalParams(
+    coords = np.array([[0, 0, 0, 0], [0, 0.5, 0.5, 0.5]])
+    elements = np.array([0, 0])
+    params = CrystalParams(
         A=10,
         B=10,
         C=10,
@@ -20,15 +20,19 @@ def test_crystal_param():
         coords=coords,
         elements=elements,
     )
-  print(params)
-  print(dir(params))
+    print(params)
+    print(dir(params))
 
-  energy_grid = params.LJ_Grid(32);
-  print(type(energy_grid))
-  print(energy_grid.shape)
-  print(energy_grid[0][0])
+    energy_grid = params.LJ_Grid(32)
+    print(type(energy_grid))
+    print(energy_grid.shape)
+    print(energy_grid[0][0])
 
+
+def test_grid_generation():
+    from Periodic import CrystalParams
+    
 
 if __name__ == "__main__":
-  test_import()
-  test_crystal_param()
+    test_import()
+    test_crystal_param()

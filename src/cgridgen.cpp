@@ -118,6 +118,7 @@ void display_tensor_py(npcarray tensor, int show_max = 10){
 
 PYBIND11_MODULE(GridGenerator, m) {
     m.doc() = "Generate grids from point clouds";
+    auto periodic_module = m.def_submodule("periodic", "Periodic Grid Generation");
     m.def("molecule_grid", &molecule_grid,
           "Convert a single 4-D point-cloud to grid",
           py::arg("points"), py::arg("grid_size"), py::arg("num_channels"),
