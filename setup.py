@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 # Available at setup time due to pyproject.toml
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 min_python_version = '.'.join(map(str, (3, 6, 2)))
 
 pybind_11_extension = Pybind11Extension("GridGenerator",

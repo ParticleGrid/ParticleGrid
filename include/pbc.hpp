@@ -59,9 +59,6 @@ struct CrystalParams
     const float *ptr_points = (float *)coords.request().ptr;
     const int *elem_data = (int *)elements.request().ptr;
 
-    std::cout << "Number of points \t" << num_points << std::endl;
-    std::cout << "Number of dims \t" << num_dims << std::endl;
-
     std::vector<float> expanded_frac_coords;
 
     for (size_t coord = 0; coord < num_points; ++coord)
@@ -87,8 +84,8 @@ struct CrystalParams
           {
             // Translate along the z-dimension
 
-            // To do: Add logic here so that only points close to the boundary 
-            // get added 
+            // To do: Add logic here so that only points close to the boundary
+            // get added
             expanded_frac_coords.insert(expanded_frac_coords.end(), {x_translate, y_translate, z_translate});
             m_channels.push_back(c);
             m_elements.push_back(elem);
@@ -105,8 +102,7 @@ struct CrystalParams
                   expanded_cart_coords.size() / 3);
     m_cart_coords = std::move(expanded_cart_coords);
   }
-  py::array_t<float> LJ_grid(const int& grid_size);
-  py::array_t<float> LJ_grid_blocked(const int& grid_size);
-  py::array_t<float>  Metal_Organic_Grid(const int& grid_size, const float &variance);
-
+  py::array_t<float> LJ_grid(const int &grid_size);
+  py::array_t<float> Metal_Organic_Grid(const int &grid_size, const float &variance);
+  py::array_t<float> get_cart_coords();
 };

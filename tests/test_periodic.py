@@ -8,7 +8,7 @@ def test_import():
 def test_crystal_param():
   from Periodic import CrystalParams
 
-  coords = np.array([[0, 0, 0, 0], [0, 0.5, 0.5, 0.5]])
+  coords = np.array([[0, 0, 0, 0], [0, 0.5, 0.5, 0]])
   elements = np.array([0, 0])
   params = CrystalParams(
         A=10,

@@ -9,38 +9,6 @@ namespace py = pybind11;
 typedef py::array_t<float, py::array::c_style | py::array::forcecast> npcarray;
 typedef py::array_t<int, py::array::c_style | py::array::forcecast> npcarray_int;
 
-// py::array_t<float>
-// energy_grid(const CrystalParams &crystal_params,
-//             const ssize_t &W,
-//             const ssize_t &H,
-//             const ssize_t &D)
-// {
-//   const std::array<ssize_t, 4> grid_shape = {1, H, W, D};
-//   npcarray grid = py::array_t<float>(grid_shape);
-
-//   float* tensor = (float *)grid.request().ptr;
-
-//   // periodic::generate_grid_impl<>(tensor);
-//   return grid;
-// }
-
-// py::array_t<float>
-// periodic_grid(const CrystalParams &crystal_params,
-//               const ssize_t &W,
-//               const ssize_t &H,
-//               const ssize_t &D,
-//               const ssize_t &num_channels)
-// {
-//   const std::array<ssize_t, 4> grid_shape = {num_channels, H, W, D};
-//   npcarray grid = py::array_t<float>(grid_shape);
-
-//   float* tensor = (float *)grid.request().ptr;
-
-//   periodic::generate_grid_impl<>(tensor);
-//   return grid;
-// }
-
-
 py::array_t<float>
 CrystalParams::LJ_grid(const int &grid_size)
 {
@@ -96,7 +64,6 @@ CrystalParams::LJ_grid(const int &grid_size)
   return grid;
 }
 
-
 py::array_t<float>
 CrystalParams::Metal_Organic_Grid(const int &grid_size, const float &variance)
 {
@@ -110,7 +77,7 @@ CrystalParams::Metal_Organic_Grid(const int &grid_size, const float &variance)
   constexpr float outer_const = 0.125;
   constexpr float inner_const = 2.82842712 / 8;
   const float var_div = std::pow(variance, 3);
-  
+
   // I believe I know a better way of doing by performing all calculations
   // in the fractional space using a metric tensor
   // Follow up with Shehtab ( or me in case of future self)
@@ -167,14 +134,34 @@ CrystalParams::Metal_Organic_Grid(const int &grid_size, const float &variance)
 
           float l_end_point = erf_apx(gp_x - atom_x) * erf_apx(gp_y - atom_y) * erf_apx(gp_z - atom_z);
           float r_end_point = erf_apx(gp_x_delta - atom_x) * erf_apx(gp_y_delta - atom_y) * erf_apx(gp_z_delta - atom_z);
-          
+
           float prob = r_end_point - l_end_point;
-          if (prob > 1e-7){
+          if (prob > 1e-7)
+          {
             tensor[atom_channel + stride + z] += ((prob * inner_const) / var_div);
           }
         }
       }
     }
+  }
+  return grid;
+}
+
+
+py::array_t<float>
+CrystalParams::get_cart_coords()
+{
+  const std::array<ssize_t, 2> grid_shape = {m_cart_coords.size() / 3, 4};
+  npcarray grid = py::array_t<float>(grid_shape);
+
+  float *tensor = (float *)grid.request().ptr;
+
+  for (auto atom = 0; atom < m_cart_coords.size() / 3; ++atom)
+  {
+    tensor[atom * 3] = m_cart_coords[3 * atom];
+    tensor[atom * 3 + 1] = m_cart_coords[3 * atom + 1];
+    tensor[atom * 3 + 2] = m_cart_coords[3 * atom + 2];
+    tensor[atom * 3 + 3] = m_elements[atom];
   }
   return grid;
 }
@@ -195,7 +182,8 @@ PYBIND11_MODULE(Periodic, m)
            py::arg("alpha"), py::arg("beta"), py::arg("gamma"), py::arg("coords"), py::arg("elements"))
       .def("__repr__", &CrystalParams::toString)
       .def("LJ_Grid", &CrystalParams::LJ_grid)
-      .def("Probability_Grid", &CrystalParams::Metal_Organic_Grid);
+      .def("Probability_Grid", &CrystalParams::Metal_Organic_Grid)
+      .def("get_cart_coords", &CrystalParams::get_cart_coords);
 
 #ifdef VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
