@@ -22,11 +22,12 @@ def test_crystal_param():
     )
   print(params)
   print(dir(params))
-
-  energy_grid = params.LJ_Grid(32);
-  print(type(energy_grid))
-  print(energy_grid.shape)
-  print(energy_grid[0][0])
+  print(params.get_cartesian_coords())
+  # energy_grid = params.LJ_Grid(32);
+  
+  # print(type(energy_grid))
+  # print(energy_grid.shape)
+  # print(energy_grid[0][0])
 
 
 if __name__ == "__main__":

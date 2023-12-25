@@ -183,7 +183,7 @@ PYBIND11_MODULE(Periodic, m)
       .def("__repr__", &CrystalParams::toString)
       .def("LJ_Grid", &CrystalParams::LJ_grid)
       .def("Probability_Grid", &CrystalParams::Metal_Organic_Grid)
-      .def("get_cart_coords", &CrystalParams::get_cart_coords);
+      .def("get_cartesian_coords", &CrystalParams::get_cart_coords);
 
 #ifdef VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
