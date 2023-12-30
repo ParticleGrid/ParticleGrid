@@ -199,10 +199,10 @@ def test_crystal_param():
         params.get_cartesian_coords(),
         params.get_channels(),
         params.get_transform_matrix(),
-        grid_size=16,
+        grid_size=4,
     )
     np.save("ground_truth_prob_grid.npy", ground_truth_prob_grid)
-    prob_grid = params.Probability_Grid(16, 1)
+    prob_grid = params.Probability_Grid(4, 1)
     np.save("prob_grid.npy", prob_grid)
     print(np.allclose(prob_grid, ground_truth_prob_grid, rtol=1e-03))
     # energy_grid = params.LJ_Grid(32);
