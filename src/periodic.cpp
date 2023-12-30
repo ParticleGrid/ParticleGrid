@@ -85,12 +85,9 @@ CrystalParams::Metal_Organic_Grid(const size_t &grid_size, const float &variance
 {
   const std::array<ssize_t, 4> grid_shape = {2, (ssize_t)grid_size, (ssize_t)grid_size, (ssize_t)grid_size};
   npcarray grid = py::array_t<float>(grid_shape);
-
   const float delta = 1.0 / grid_size;
-
   float *tensor = (float *)grid.request().ptr;
   memset(tensor, 0, grid_size * grid_size * grid_size * 2 * sizeof(float));
-
   constexpr float outer_const = 0.125;
   const float &inner_const = float(0.707106781) / variance;
 
@@ -100,24 +97,20 @@ CrystalParams::Metal_Organic_Grid(const size_t &grid_size, const float &variance
   // - Shehtab
 
   const int channel_stride = grid_size * grid_size * grid_size;
-
   float gp_x = 0;
   float gp_x_delta = 0;
   float gp_y = 0;
   float gp_y_delta = 0;
   float gp_z = 0;
   float gp_z_delta = 0;
-
   float frac_coords_xyz_delta[3] = {gp_x, gp_y, gp_z};
   float cart_coords_xyz_delta[3] = {0.0, 0.0, 0.0};
-
   matmul<float>(frac_coords_xyz_delta,
                 this->m_transform_matrix.data(),
                 cart_coords_xyz_delta,
                 1);
 
   float cart_coords_xyz[3] = {0.0, 0.0, 0.0};
-
   for (size_t x = 0; x < grid_size; ++x)
   {
     gp_x = gp_x_delta;
@@ -171,10 +164,25 @@ CrystalParams::Metal_Organic_Grid(const size_t &grid_size, const float &variance
           float r_end_point = erf_apx(r_x) * erf_apx(r_y) * erf_apx(r_z);
 
           float prob = r_end_point - l_end_point;
+
+          if (x == 0 && y == 0 && z == 0)
+          {
+            std::cout << "Atom Coords" << atom_x << ", " << atom_y << ", " << atom_z << std::endl;
+            std::cout << "Grid Coords" << grid_x << ", " << grid_y << ", " << grid_z << std::endl;
+            std::cout << "Grid Coords Delta" << grid_x_delta << ", " << grid_y_delta << ", " << grid_z_delta << std::endl;
+            std::cout << "Prob: " << prob << std::endl;
+            std::cout << "l_end_point: " << l_end_point << std::endl;
+            std::cout << "r_end_point: " << r_end_point << std::endl;
+          }
           if (prob > 1e-6)
           {
             tensor[atom_channel + stride + z] += (prob * outer_const);
           }
+        }
+        if (x == 0 && y == 0 && z == 0)
+        {
+          std::cout << tensor[0 + stride + z] << std::endl;
+          std::cout << tensor[channel_stride + stride + z] << std::endl;
         }
       }
     }

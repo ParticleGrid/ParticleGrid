@@ -201,11 +201,11 @@ def test_crystal_param():
         params.get_transform_matrix(),
         grid_size=16,
     )
-
     np.save("ground_truth_prob_grid.npy", ground_truth_prob_grid)
-
+    prob_grid = params.Probability_Grid(16, 1)
+    np.save("prob_grid.npy", prob_grid)
+    print(np.allclose(prob_grid, ground_truth_prob_grid, rtol=1e-03))
     # energy_grid = params.LJ_Grid(32);
-
     # print(type(energy_grid))
     # print(energy_grid.shape)
     # print(energy_grid[0][0])
