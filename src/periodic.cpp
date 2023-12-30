@@ -19,48 +19,79 @@ CrystalParams::LJ_grid(const int &grid_size)
 
   float *tensor = (float *)grid.request().ptr;
 
-  for (auto x_i = 0; x_i < grid_size; ++x_i)
+  // std::cout << "Grid size: " << grid_size << " Delta: " << delta << "\n";
+  // std::cout << "Starting LJ grid calculation\n";
+#pragma omp parallel for
+  for (size_t x_i = 0; x_i < grid_size; ++x_i)
   {
     const float gp_x = (x_i + 0.5) * delta;
-    for (auto y_i = 0; y_i < grid_size; ++y_i)
+    for (size_t y_i = 0; y_i < grid_size; ++y_i)
     {
       const float gp_y = (y_i + 0.5) * delta;
       const int stride = x_i * (grid_size * grid_size) + y_i * (grid_size);
 
-      for (auto z_i = 0; z_i < grid_size; ++z_i)
+      for (size_t z_i = 0; z_i < grid_size; ++z_i)
       {
         const float gp_z = (z_i + 0.5) * delta;
 
         float frac_coords[3] = {gp_x, gp_y, gp_z};
 
-        float cart_coords[3];
+        float cart_coords[3] = {0.0, 0.0, 0.0};
 
         matmul<float>(frac_coords,
                       this->m_transform_matrix.data(),
                       cart_coords,
                       1);
+
+        const float grid_x = cart_coords[0];
+        const float grid_y = cart_coords[1];
+        const float grid_z = cart_coords[2];
+
+        // if (x_i == 4 && y_i == 0 && z_i == 5)
+        // {
+        //   std::cout << "Grid coords: " << grid_x
+        //             << ", " << grid_y << ", " << grid_z << std::endl;
+        // }
         float energy = 0.0;
-        for (auto atom = 0; atom < m_cart_coords.size() / 3; ++atom)
+        for (size_t atom = 0; atom < m_cart_coords.size() / 3; ++atom)
         {
           float atom_x = this->m_cart_coords[3 * atom];
           float atom_y = this->m_cart_coords[3 * atom + 1];
           float atom_z = this->m_cart_coords[3 * atom + 2];
 
-          float r = std::sqrt(std::pow((atom_x - gp_x), 2) +
-                              std::pow((atom_y - gp_y), 2) +
-                              std::pow((atom_z - gp_z), 2));
+          float r = std::sqrt(std::pow((atom_x - grid_x), 2) +
+                              std::pow((atom_y - grid_y), 2) +
+                              std::pow((atom_z - grid_z), 2));
 
           float sigma = 0.5 * (SIGMA_ARRAY[0] + SIGMA_ARRAY[m_elements[atom]]);
-          energy += (std::pow(sigma / r, 12) - std::pow(sigma / r, 6));
+          float local_energy = (std::pow(sigma / r, 12) - std::pow(sigma / r, 6));
+          energy += local_energy;
+
+          // if (x_i == 4 && y_i == 0 && z_i == 5)
+          // {
+
+          //   std::cout << "Atom coords: " << atom_x
+          //             << ", " << atom_y << ", " << atom_z
+          //             << ", " << r << ", " << local_energy << std::endl;
+          // }
         }
 
         if (energy < 1E8)
         {
-          tensor[stride + z_i] += 1 / (4 * energy);
+          tensor[stride + z_i] = 1 / (4 * energy);
         }
+        else
+        {
+          tensor[stride + z_i] = 0.0;
+        }
+        // if (x_i == 4 && y_i == 0 && z_i == 5)
+        // {
+        //   std::cout << energy << ", " << tensor[stride + z_i] << std::endl;
+        // }
       }
     }
   }
+  // std::cout << "Finished LJ grid calculation\n";
   return grid;
 }
 
@@ -147,21 +178,68 @@ CrystalParams::Metal_Organic_Grid(const int &grid_size, const float &variance)
   return grid;
 }
 
-
 py::array_t<float>
 CrystalParams::get_cart_coords()
 {
-  const std::array<ssize_t, 2> grid_shape = {m_cart_coords.size() / 3, 4};
+  const std::array<ssize_t, 2> grid_shape = {(ssize_t)(m_cart_coords.size() / 3), 4};
   npcarray grid = py::array_t<float>(grid_shape);
 
   float *tensor = (float *)grid.request().ptr;
 
   for (auto atom = 0; atom < m_cart_coords.size() / 3; ++atom)
   {
-    tensor[atom * 3] = m_cart_coords[3 * atom];
-    tensor[atom * 3 + 1] = m_cart_coords[3 * atom + 1];
-    tensor[atom * 3 + 2] = m_cart_coords[3 * atom + 2];
-    tensor[atom * 3 + 3] = m_elements[atom];
+    tensor[atom * 4] = m_cart_coords[3 * atom];
+    tensor[atom * 4 + 1] = m_cart_coords[3 * atom + 1];
+    tensor[atom * 4 + 2] = m_cart_coords[3 * atom + 2];
+    tensor[atom * 4 + 3] = m_elements[atom];
+  }
+  return grid;
+}
+
+py::array_t<int>
+CrystalParams::get_elements()
+{
+  const std::array<ssize_t, 1> grid_shape = {(ssize_t)m_elements.size()};
+  npcarray_int grid = py::array_t<int>(grid_shape);
+
+  int *tensor = (int *)grid.request().ptr;
+
+  for (auto atom = 0; atom < m_elements.size(); ++atom)
+  {
+    tensor[atom] = m_elements[atom];
+  }
+  return grid;
+}
+
+py::array_t<int>
+CrystalParams::get_channels()
+{
+  const std::array<ssize_t, 1> grid_shape = {(ssize_t)m_channels.size()};
+  npcarray_int grid = py::array_t<int>(grid_shape);
+
+  int *tensor = (int *)grid.request().ptr;
+
+  for (auto atom = 0; atom < m_channels.size(); ++atom)
+  {
+    tensor[atom] = m_channels[atom];
+  }
+  return grid;
+}
+
+py::array_t<float>
+CrystalParams::get_transform_matrix()
+{
+  const std::array<ssize_t, 2> grid_shape = {3, 3};
+  npcarray grid = py::array_t<float>(grid_shape);
+
+  float *tensor = (float *)grid.request().ptr;
+
+  for (auto i = 0; i < 3; ++i)
+  {
+    for (auto j = 0; j < 3; ++j)
+    {
+      tensor[i * 3 + j] = m_transform_matrix[i * 3 + j];
+    }
   }
   return grid;
 }
@@ -183,7 +261,10 @@ PYBIND11_MODULE(Periodic, m)
       .def("__repr__", &CrystalParams::toString)
       .def("LJ_Grid", &CrystalParams::LJ_grid)
       .def("Probability_Grid", &CrystalParams::Metal_Organic_Grid)
-      .def("get_cartesian_coords", &CrystalParams::get_cart_coords);
+      .def("get_cartesian_coords", &CrystalParams::get_cart_coords)
+      .def("get_transform_matrix", &CrystalParams::get_transform_matrix)
+      .def("get_elements", &CrystalParams::get_elements)
+      .def("get_channels", &CrystalParams::get_channels);
 
 #ifdef VERSION_INFO
   m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
