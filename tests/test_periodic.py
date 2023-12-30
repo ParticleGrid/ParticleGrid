@@ -184,9 +184,9 @@ def test_crystal_param():
         grid_size=32,
     )
 
-    # energy_grid = params.LJ_Grid(32)
+    energy_grid = params.LJ_Grid(32)
 
-    asset np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03)
+    assert np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03)
     # np.save("ground_truth_energy_grid.npy", ground_truth_energy_grid)
     # np.save("energy_grid.npy", energy_grid)
     print("Passed energy grid test")
