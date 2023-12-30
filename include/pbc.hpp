@@ -56,11 +56,14 @@ struct CrystalParams
   {
     const size_t num_points = coords.shape(0);
     const size_t num_dims = coords.shape(1);
+
+    if (num_dims != 4)
+    {
+      throw std::runtime_error("Number of dimensions must be 4");
+    }
+
     const float *ptr_points = (float *)coords.request().ptr;
     const int *elem_data = (int *)elements.request().ptr;
-
-    std::cout << "Number of points \t" << num_points << std::endl;
-    std::cout << "Number of dims \t" << num_dims << std::endl;
 
     std::vector<float> expanded_frac_coords;
 
@@ -80,18 +83,28 @@ struct CrystalParams
       for (const auto &x_translate : {x - 1, x, x + 1})
       {
         // Translate along the x-dimension
-        for (const auto &y_translate : {y - 1, y, y + 1})
+        if (x_translate > -0.25 && x_translate < 1.25)
         {
-          // Translate along the y-dimension
-          for (const auto &z_translate : {z - 1, z, z + 1})
+          for (const auto &y_translate : {y - 1, y, y + 1})
           {
-            // Translate along the z-dimension
-
-            // To do: Add logic here so that only points close to the boundary 
-            // get added 
-            expanded_frac_coords.insert(expanded_frac_coords.end(), {x_translate, y_translate, z_translate});
-            m_channels.push_back(c);
-            m_elements.push_back(elem);
+            // Translate along the y-dimension
+            if (y_translate > -0.25 && y_translate < 1.25)
+            {
+              for (const auto &z_translate : {z - 1, z, z + 1})
+              {
+                // Translate along the z-dimension
+                if (z_translate > -0.25 && z_translate < 1.25)
+                {
+                  if (x_translate == x && y_translate == y && z_translate == z)
+                  {
+                    continue;
+                  }
+                  expanded_frac_coords.insert(expanded_frac_coords.end(), {x_translate, y_translate, z_translate});
+                  m_channels.push_back(c);
+                  m_elements.push_back(elem);
+                }
+              }
+            }
           }
         }
       }
@@ -105,8 +118,10 @@ struct CrystalParams
                   expanded_cart_coords.size() / 3);
     m_cart_coords = std::move(expanded_cart_coords);
   }
-  py::array_t<float> LJ_grid(const int& grid_size);
-  py::array_t<float> LJ_grid_blocked(const int& grid_size);
-  py::array_t<float>  Metal_Organic_Grid(const int& grid_size, const float &variance);
-
+  py::array_t<float> LJ_grid(const size_t &grid_size);
+  py::array_t<float> Metal_Organic_Grid(const size_t &grid_size, const float &variance);
+  py::array_t<float> get_cart_coords();
+  py::array_t<int> get_elements();
+  py::array_t<int> get_channels();
+  py::array_t<float> get_transform_matrix();
 };
