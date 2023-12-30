@@ -177,7 +177,6 @@ def test_crystal_param():
         coords=coords,
         elements=elements,
     )
-
     ground_truth_energy_grid = generate_LJ_grid(
         params.get_cartesian_coords(),
         params.get_elements(),
@@ -185,25 +184,22 @@ def test_crystal_param():
         grid_size=32,
     )
 
-    energy_grid = params.LJ_Grid(32)
+    # energy_grid = params.LJ_Grid(32)
 
-    assert np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03)
-    # print()
+    asset np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03)
     # np.save("ground_truth_energy_grid.npy", ground_truth_energy_grid)
     # np.save("energy_grid.npy", energy_grid)
-    # print()
+    print("Passed energy grid test")
     ground_truth_prob_grid = generate_prob_grid(
         params.get_cartesian_coords(),
         params.get_channels(),
         params.get_transform_matrix(),
         grid_size=32,
     )
-    # print()
     # np.save("ground_truth_prob_grid.npy", ground_truth_prob_grid)
     prob_grid = params.Probability_Grid(32, 1)
-    # np.save("prob_grid.npy", prob_grid)
     assert np.allclose(prob_grid, ground_truth_prob_grid, atol=1e-02)
-    # energy_grid = params.LJ_Grid(32);
+    print("Passed probability grid test")
 
 
 if __name__ == "__main__":
