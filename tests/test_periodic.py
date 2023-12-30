@@ -1,4 +1,80 @@
 import numpy as np
+from scipy import special
+
+
+def generate_prob_grid(cartesian_coords, channels, transform_matrix, grid_size=16):
+    """
+    Generate probability grid for a given crystal structure
+
+    Parameters
+    ----------
+    cartesian_coords : np.ndarray
+        Cartesian coordinates of the crystal structure
+    channels : np.ndarray
+        Channels of each atom in the crystal structure
+    transform_matrix : np.ndarray
+        Transformation matrix of the crystal structure
+
+    Returns
+    -------
+    prob_grid : np.ndarray
+        Probability grid of the crystal structure
+    """
+    grid_points = np.linspace(0, 1, grid_size + 1)
+    cart_grid_x, cart_grid_y, cart_grid_z = np.meshgrid(
+        grid_points, grid_points, grid_points, indexing="ij"
+    )
+
+    frac_grid = np.concatenate(
+        [
+            cart_grid_x.reshape(-1, 1),
+            cart_grid_y.reshape(-1, 1),
+            cart_grid_z.reshape(-1, 1),
+        ],
+        axis=1,
+    )
+    cart_grid = np.matmul(frac_grid, transform_matrix).reshape(
+        grid_size + 1, grid_size + 1, grid_size + 1, 3
+    )
+    prob_grid = np.zeros((2, grid_size, grid_size, grid_size))
+    for i in range(grid_size):
+        for j in range(grid_size):
+            for k in range(grid_size):
+                x_t = cart_grid[i + 1][j][k][0]
+                y_t = cart_grid[i][j + 1][k][1]
+                z_t = cart_grid[i][j][k + 1][2]
+
+                integral_end_points = np.array([x_t, y_t, z_t])
+
+                for atom_i, atom_coord in enumerate(cartesian_coords):
+                    channel = channels[atom_i]
+                    renp = cart_grid[i][j][k] - atom_coord[:3]
+                    lenp = integral_end_points - atom_coord[:3]
+                    lend_point = special.erf(renp * (np.sqrt(2) / 2))
+                    rend_point = special.erf(lenp * (np.sqrt(2) / 2))
+                    prob = np.cumprod(rend_point - lend_point)
+
+                    if prob[-1] < 0:
+                        print(
+                            f"Atom coord: {atom_coord[:3]}",
+                            f"{cart_grid[i][j][k]} {integral_end_points}",
+                        )
+                        print(f"left end point {renp}")
+                        print(f"right end point {lenp}")
+
+                        print(f"left prob {special.erf(lenp)}")
+                        print(f"right prob {special.erf(renp)}")
+                        print(f"right prob {special.erf(renp)}")
+
+                        print()
+                        # print(
+                        #     f"\nlend_point {lend_point} rend_point {rend_point}",
+                        # )
+                    if prob[-1] > 1e-7:
+                        prob_grid[channel][i][j][k] += prob[-1] / 8
+
+                # print()
+    return prob_grid
 
 
 def generate_LJ_grid(cartesian_coords, elements, transform_matrix, grid_size=16):
@@ -106,18 +182,27 @@ def test_crystal_param():
     print(params.get_elements())
     print(params.get_transform_matrix())
 
-    ground_truth_energy_grid = generate_LJ_grid(
+    # ground_truth_energy_grid = generate_LJ_grid(
+    #     params.get_cartesian_coords(),
+    #     params.get_elements(),
+    #     params.get_transform_matrix(),
+    #     grid_size=32,
+    # )
+
+    # energy_grid = params.LJ_Grid(32)
+
+    # print(np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03))
+    # np.save("ground_truth_energy_grid.npy", ground_truth_energy_grid)
+    # np.save("energy_grid.npy", energy_grid)
+
+    ground_truth_prob_grid = generate_prob_grid(
         params.get_cartesian_coords(),
-        params.get_elements(),
+        params.get_channels(),
         params.get_transform_matrix(),
-        grid_size=32,
+        grid_size=16,
     )
 
-    energy_grid = params.LJ_Grid(32)
-
-    print(np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03))
-    np.save("ground_truth_energy_grid.npy", ground_truth_energy_grid)
-    np.save("energy_grid.npy", energy_grid)
+    np.save("ground_truth_prob_grid.npy", ground_truth_prob_grid)
 
     # energy_grid = params.LJ_Grid(32);
 

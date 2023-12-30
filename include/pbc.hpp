@@ -118,8 +118,8 @@ struct CrystalParams
                   expanded_cart_coords.size() / 3);
     m_cart_coords = std::move(expanded_cart_coords);
   }
-  py::array_t<float> LJ_grid(const int &grid_size);
-  py::array_t<float> Metal_Organic_Grid(const int &grid_size, const float &variance);
+  py::array_t<float> LJ_grid(const size_t &grid_size);
+  py::array_t<float> Metal_Organic_Grid(const size_t &grid_size, const float &variance);
   py::array_t<float> get_cart_coords();
   py::array_t<int> get_elements();
   py::array_t<int> get_channels();
