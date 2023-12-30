@@ -80,6 +80,8 @@ CrystalParams::LJ_grid(const size_t &grid_size)
   return grid;
 }
 
+// TO DO: ADD specialized implementation for cached grid values and orthogonal lattices
+// - Shehtab
 py::array_t<float>
 CrystalParams::Metal_Organic_Grid(const size_t &grid_size, const float &variance)
 {
@@ -97,53 +99,41 @@ CrystalParams::Metal_Organic_Grid(const size_t &grid_size, const float &variance
   // - Shehtab
 
   const int channel_stride = grid_size * grid_size * grid_size;
-  float gp_x_delta = 0;
-  float gp_y_delta = 0;
-  float gp_z_delta = 0;
-  float frac_coords_xyz_delta[3] = {0.0, 0.0, 0.0};
-  float cart_coords_xyz_delta[3] = {0.0, 0.0, 0.0};
-  matmul<float>(frac_coords_xyz_delta,
-                this->m_transform_matrix.data(),
-                cart_coords_xyz_delta,
-                1);
 
-  std::cout << "Delta: " << delta << "\n";
-
-  std::cout << "Grid Coords: \t" << cart_coords_xyz_delta[0] << ", "
-            << cart_coords_xyz_delta[1] << ", "
-            << cart_coords_xyz_delta[2] << std::endl;
+#pragma omp parallel for
   for (size_t x = 0; x < grid_size; ++x)
   {
-    gp_x_delta = (x + 1) * delta;
+    float gp_x = x * delta;
+    float gp_x_delta = (x + 1) * delta;
     for (size_t y = 0; y < grid_size; ++y)
     {
-      gp_y_delta = (y + 1) * delta;
+      float gp_y = y * delta;
+      float gp_y_delta = (y + 1) * delta;
       const int stride = x * (grid_size * grid_size) + y * (grid_size);
       for (size_t z = 0; z < grid_size; ++z)
       {
-        gp_z_delta = (z + 1) * delta;
-
-        const float grid_x = cart_coords_xyz_delta[0];
-        const float grid_y = cart_coords_xyz_delta[1];
-        const float grid_z = cart_coords_xyz_delta[2];
-
-        float temp[3] = {gp_x_delta, gp_y_delta, gp_z_delta};
-        float temp_xyz_delta[3] = {0.0, 0.0, 0.0};
+        float gp_z = z * delta;
+        float gp_z_delta = (z + 1) * delta;
+        float temp[3] = {gp_x, gp_y, gp_z};
+        float temp_xyz[3] = {0.0, 0.0, 0.0};
         matmul<float>(temp,
+                      this->m_transform_matrix.data(),
+                      temp_xyz,
+                      1);
+
+        const float grid_x = temp_xyz[0];
+        const float grid_y = temp_xyz[1];
+        const float grid_z = temp_xyz[2];
+
+        float temp_delta[3] = {gp_x_delta, gp_y_delta, gp_z_delta};
+        float temp_xyz_delta[3] = {0.0, 0.0, 0.0};
+        matmul<float>(temp_delta,
                       this->m_transform_matrix.data(),
                       temp_xyz_delta,
                       1);
         const float grid_x_delta = temp_xyz_delta[0];
         const float grid_y_delta = temp_xyz_delta[1];
         const float grid_z_delta = temp_xyz_delta[2];
-
-        std::cout << "i, j, k: " << x << ", " << y << ", " << z << ";";
-        std::cout << " Grid Coords: " << grid_x << ", "
-                  << grid_y << ", " << grid_z << ";";
-        std::cout << " Grid Delta Coords: " << grid_x_delta << ", "
-                  << grid_y_delta << ", " << grid_z_delta << std::endl;
-        // std::cout << "Grid Coords Delta: \t" << grid_x_delta << ", "
-        //           << grid_y_delta << ", " << grid_z_delta << std::endl;
 
         for (size_t atom = 0; atom < m_cart_coords.size() / 3; ++atom)
         {
@@ -160,34 +150,17 @@ CrystalParams::Metal_Organic_Grid(const size_t &grid_size, const float &variance
           const float &r_y = inner_const * (grid_y - atom_y);
           const float &r_z = inner_const * (grid_z - atom_z);
 
-          float l_end_point = erf_apx(l_x) * erf_apx(l_y) * erf_apx(l_z);
-          float r_end_point = erf_apx(r_x) * erf_apx(r_y) * erf_apx(r_z);
+          float integral_x = erf_apx(l_x) - erf_apx(r_x);
+          float integral_y = erf_apx(l_y) - erf_apx(r_y);
+          float integral_z = erf_apx(l_z) - erf_apx(r_z);
 
-          float prob = r_end_point - l_end_point;
+          float prob = integral_x * integral_y * integral_z;
 
-          // if (x == 0 && y == 0 && z == 0)
-          // {
-          //   std::cout << "Atom Coords" << atom_x << ", " << atom_y << ", " << atom_z << std::endl;
-          //   std::cout << "Grid Coords Delta" << grid_x_delta << ", " << grid_y_delta << ", " << grid_z_delta << std::endl;
-          //   std::cout << "Prob: " << prob << std::endl;
-          //   std::cout << "l_end_point: " << l_end_point << std::endl;
-          //   std::cout << "r_end_point: " << r_end_point << std::endl;
-          // }
-          if (prob > 1e-6)
+          if (prob > 1e-7)
           {
             tensor[atom_channel + stride + z] += (prob * outer_const);
           }
         }
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-          cart_coords_xyz_delta[i] = temp_xyz_delta[i];
-        }
-        // if (x == 0 && y == 0 && z == 0)
-        // {
-        //   std::cout << tensor[0 + stride + z] << std::endl;
-        //   std::cout << tensor[channel_stride + stride + z] << std::endl;
-        // }
       }
     }
   }

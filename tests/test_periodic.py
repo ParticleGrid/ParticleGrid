@@ -48,11 +48,15 @@ def generate_prob_grid(cartesian_coords, channels, transform_matrix, grid_size=1
 
                 for atom_i, atom_coord in enumerate(cartesian_coords):
                     channel = channels[atom_i]
-                    renp = cart_grid[i][j][k] - atom_coord[:3]
-                    lenp = integral_end_points - atom_coord[:3]
-                    lend_point = special.erf(renp * (np.sqrt(2) / 2))
-                    rend_point = special.erf(lenp * (np.sqrt(2) / 2))
-                    prob = np.cumprod(rend_point - lend_point)
+                    renp = (cart_grid[i][j][k] - atom_coord[:3]) * np.sqrt(2) / 2
+                    lenp = (integral_end_points - atom_coord[:3]) * np.sqrt(2) / 2
+                    rend_point = special.erf(renp)
+                    lend_point = special.erf(lenp)
+                    prob = np.cumprod(lend_point - rend_point)
+
+                    # if i == 0 and j == 0 and k == 1:
+                    #     print(renp, lenp, atom_coord[:3], prob[-1])
+                    # print(lend_point - rend_point)
 
                     if prob[-1] < 0:
                         print(
@@ -72,7 +76,7 @@ def generate_prob_grid(cartesian_coords, channels, transform_matrix, grid_size=1
                         # )
                     if prob[-1] > 1e-7:
                         prob_grid[channel][i][j][k] += prob[-1] / 8
-
+                # print(f"{i}, {j}, {k} : {prob_grid[:, i, j, k]}")
                 # print()
     return prob_grid
 
@@ -173,42 +177,33 @@ def test_crystal_param():
         coords=coords,
         elements=elements,
     )
-    print(params)
-    print(dir(params))
-    print(params.get_cartesian_coords())
-    print(params.get_channels())
-    print(params.get_channels().shape)
 
-    print(params.get_elements())
-    print(params.get_transform_matrix())
+    ground_truth_energy_grid = generate_LJ_grid(
+        params.get_cartesian_coords(),
+        params.get_elements(),
+        params.get_transform_matrix(),
+        grid_size=32,
+    )
 
-    # ground_truth_energy_grid = generate_LJ_grid(
-    #     params.get_cartesian_coords(),
-    #     params.get_elements(),
-    #     params.get_transform_matrix(),
-    #     grid_size=32,
-    # )
+    energy_grid = params.LJ_Grid(32)
 
-    # energy_grid = params.LJ_Grid(32)
-
-    # print(np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03))
+    assert np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03)
+    # print()
     # np.save("ground_truth_energy_grid.npy", ground_truth_energy_grid)
     # np.save("energy_grid.npy", energy_grid)
-
+    # print()
     ground_truth_prob_grid = generate_prob_grid(
         params.get_cartesian_coords(),
         params.get_channels(),
         params.get_transform_matrix(),
-        grid_size=4,
+        grid_size=32,
     )
-    np.save("ground_truth_prob_grid.npy", ground_truth_prob_grid)
-    prob_grid = params.Probability_Grid(4, 1)
-    np.save("prob_grid.npy", prob_grid)
-    print(np.allclose(prob_grid, ground_truth_prob_grid, rtol=1e-03))
+    # print()
+    # np.save("ground_truth_prob_grid.npy", ground_truth_prob_grid)
+    prob_grid = params.Probability_Grid(32, 1)
+    # np.save("prob_grid.npy", prob_grid)
+    assert np.allclose(prob_grid, ground_truth_prob_grid, atol=1e-02)
     # energy_grid = params.LJ_Grid(32);
-    # print(type(energy_grid))
-    # print(energy_grid.shape)
-    # print(energy_grid[0][0])
 
 
 if __name__ == "__main__":
