@@ -67,7 +67,11 @@ CrystalParams::LJ_grid(const size_t &grid_size)
         }
         if (energy < 1E8)
         {
+<<<<<<< HEAD
           tensor[stride + z_i] = 1 / (4 * energy);
+=======
+          tensor[stride + z_i] += 4 * energy;
+>>>>>>> Force function to return raw scores
         }
         // if (x_i == 4 && y_i == 0 && z_i == 5)
         // {
