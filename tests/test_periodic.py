@@ -114,7 +114,9 @@ def generate_LJ_grid(cartesian_coords, elements, transform_matrix, grid_size=16)
         axis=1,
     )
     hydrogen_sigma = 0.2571133701e01
+    hydrogen_epsilon = 0.2214153040e02
     sigma_array = [0.2571133701e01, 0.2104302772e01]
+    epsilon_array = [0.2214153040e02, 0.2818012960e02]
 
     cart_grid = np.matmul(frac_grid, transform_matrix).reshape(
         grid_size + 1, grid_size + 1, grid_size + 1, 3
@@ -129,24 +131,21 @@ def generate_LJ_grid(cartesian_coords, elements, transform_matrix, grid_size=16)
                 gp_y = (cart_grid[i][j][k][1] + cart_grid[i][j + 1][k][1]) / 2
                 gp_z = (cart_grid[i][j][k][2] + cart_grid[i][j][k + 1][2]) / 2
                 # if (i == 4) and (j == 0) and (k == 5):
-                #     print("Python Cartesian Coords: ", gp_x, gp_y, gp_z)
+                # print("Python Cartesian Coords: ", gp_x, gp_y, gp_z)
                 energy = 0
                 for atom_i, atom_coord in enumerate(cartesian_coords):
                     diff = (atom_coord[:3] - np.array([gp_x, gp_y, gp_z])) ** 2
                     dist = np.sqrt(np.sum(diff))
                     sigma = 0.5 * (hydrogen_sigma + sigma_array[elements[atom_i]])
                     local_energy = (sigma / dist) ** 12 - (sigma / dist) ** 6
-                    # if (i == 4) and (j == 0) and (k == 5):
-                    #     print(
-                    #         "Python Atom Coords: ", atom_coord[:3], dist, local_energy
-                    #     )
-                    # print("Python Distance: ", dist)
-                    energy += local_energy
-                if energy < 1e8:
-                    # print(energy, i, j, k)
-                    lj_grid[i][j][k] += 1 / (4 * energy)
-                    # if (i == 4) and (j == 0) and (k == 5):
-                    #     print("Python Energy: ", energy, "LJ Grid: ", lj_grid[i][j][k])
+                    epsilon = np.sqrt(
+                        hydrogen_epsilon * epsilon_array[elements[atom_i]]
+                    )
+                    energy += epsilon * local_energy
+                if energy < 1e6 / 4:
+                    lj_grid[i][j][k] = 4 * energy
+                else:
+                    lj_grid[i][j][k] = 1e6
     return lj_grid
 
 
@@ -177,18 +176,19 @@ def test_crystal_param():
         coords=coords,
         elements=elements,
     )
+    grid_size = 16
     ground_truth_energy_grid = generate_LJ_grid(
         params.get_cartesian_coords(),
         params.get_elements(),
         params.get_transform_matrix(),
-        grid_size=32,
+        grid_size=grid_size,
     )
 
-    energy_grid = params.LJ_Grid(32)
-
-    assert np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03)
+    energy_grid = params.LJ_Grid(grid_size)
     # np.save("ground_truth_energy_grid.npy", ground_truth_energy_grid)
     # np.save("energy_grid.npy", energy_grid)
+
+    assert np.allclose(energy_grid, ground_truth_energy_grid, rtol=1e-03)
     print("Passed energy grid test")
     ground_truth_prob_grid = generate_prob_grid(
         params.get_cartesian_coords(),

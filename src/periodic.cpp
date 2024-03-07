@@ -17,9 +17,7 @@ CrystalParams::LJ_grid(const size_t &grid_size)
   float delta = 1.0 / grid_size;
   float *tensor = (float *)grid.request().ptr;
   memset(tensor, 0, grid_size * grid_size * grid_size * sizeof(float));
-  // std::cout << "Grid size: " << grid_size << " Delta: " << delta << "\n";
-  // std::cout << "Starting LJ grid calculation\n";
-#pragma omp parallel for
+// #pragma omp parallel for
   for (size_t x_i = 0; x_i < grid_size; ++x_i)
   {
     const float gp_x = (x_i + 0.5) * delta;
@@ -39,12 +37,8 @@ CrystalParams::LJ_grid(const size_t &grid_size)
         const float grid_x = cart_coords[0];
         const float grid_y = cart_coords[1];
         const float grid_z = cart_coords[2];
-        // if (x_i == 4 && y_i == 0 && z_i == 5)
-        // {
-        //   std::cout << "Grid coords: " << grid_x
-        //             << ", " << grid_y << ", " << grid_z << std::endl;
-        // }
         float energy = 0.0;
+
         for (size_t atom = 0; atom < m_cart_coords.size() / 3; ++atom)
         {
           float atom_x = this->m_cart_coords[3 * atom];
@@ -55,32 +49,20 @@ CrystalParams::LJ_grid(const size_t &grid_size)
                               std::pow((atom_z - grid_z), 2));
 
           float sigma = 0.5 * (SIGMA_ARRAY[0] + SIGMA_ARRAY[m_elements[atom]]);
-          float local_energy = (std::pow(sigma / r, 12) - std::pow(sigma / r, 6));
-          energy += local_energy;
-          // if (x_i == 4 && y_i == 0 && z_i == 5)
-          // {
+          float epsilon = std::sqrt(EPSILON_ARRAY[0] * EPSILON_ARRAY[m_elements[atom]]);
 
-          //   std::cout << "Atom coords: " << atom_x
-          //             << ", " << atom_y << ", " << atom_z
-          //             << ", " << r << ", " << local_energy << std::endl;
-          // }
+          float local_energy = epsilon * (std::pow(sigma / r, 12) - std::pow(sigma / r, 6));
+          energy += local_energy;
         }
-        if (energy < 1E8)
+        if (energy < 1E6 / 4.0)
         {
-<<<<<<< HEAD
-          tensor[stride + z_i] = 1 / (4 * energy);
-=======
-          tensor[stride + z_i] += 4 * energy;
->>>>>>> Force function to return raw scores
+          tensor[stride + z_i] = 4 * energy;
+        }else{
+          tensor[stride + z_i] = 1E6;
         }
-        // if (x_i == 4 && y_i == 0 && z_i == 5)
-        // {
-        //   std::cout << energy << ", " << tensor[stride + z_i] << std::endl;
-        // }
       }
     }
   }
-  // std::cout << "Finished LJ grid calculation\n";
   return grid;
 }
 
